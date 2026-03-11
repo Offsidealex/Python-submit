@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: python-submit-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: TEACHER_PASSWORD
+        value: diderot2024   # ← CHANGER AVANT DE DÉPLOYER
+      - key: DB_PATH
+        value: /var/data/submissions.db
+    disk:
+      name: db
+      mountPath: /var/data
+      sizeGB: 1
