@@ -13,6 +13,8 @@
     .badge-fail { background:#fee2e2; color:#991b1b; }
     dialog::backdrop { background: rgba(0,0,0,.5); }
     dialog { border-radius: 1rem; box-shadow: 0 20px 60px rgba(0,0,0,.3); max-width: 700px; width: 95vw; padding: 0; }
+    .spin { animation: spin 1s linear infinite; display:inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -50,6 +52,7 @@
       </div>
       <div class="flex items-center gap-4">
         <div id="stats-header" class="text-xs text-blue-200"></div>
+        <div id="pyodide-status" class="text-xs bg-blue-800 rounded-full px-3 py-1 flex items-center gap-2"><span class="spin">⟳</span> Chargement Python…</div>
         <button id="logout-btn"
           class="text-sm bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded-lg transition">
           Déconnexion
@@ -150,6 +153,21 @@
       <div id="m-output-section">
         <h3 class="font-semibold text-gray-700 mb-2">Sortie produite</h3>
         <pre id="m-output" class="bg-gray-100 rounded-lg p-3 text-xs font-mono"></pre>
+      </div>
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <h3 class="font-semibold text-gray-700">▶ Tester le code</h3>
+          <button id="m-run-btn"
+            class="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded-lg text-xs font-medium transition disabled:opacity-40">
+            Exécuter
+          </button>
+          <div id="m-run-input-section" class="flex gap-2 items-center hidden">
+            <input id="m-run-inputs" type="text" placeholder="Valeurs input() séparées par ;" 
+              class="border rounded px-2 py-1 text-xs w-48" />
+          </div>
+          <button id="m-toggle-inputs" class="text-xs text-gray-400 hover:text-gray-600">+ inputs</button>
+        </div>
+        <pre id="m-run-output" class="hidden bg-gray-900 text-green-400 rounded-lg p-3 text-xs font-mono min-h-8"></pre>
       </div>
       <div id="m-tests-section" class="hidden">
         <h3 class="font-semibold text-gray-700 mb-2">Résultats des tests</h3>
@@ -515,6 +533,85 @@ function esc(s) {
     .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;");
 }
+
+// ─── Pyodide ──────────────────────────────────────────────────────────────────
+let pyodide = null;
+
+async function loadPyodideEnv() {
+  try {
+    await new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js";
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/" });
+    const st = document.getElementById("pyodide-status");
+    st.innerHTML = "✅ Python prêt";
+    st.classList.replace("bg-blue-800", "bg-green-700");
+  } catch(e) {
+    const st = document.getElementById("pyodide-status");
+    st.innerHTML = "❌ Python indisponible";
+    st.classList.replace("bg-blue-800", "bg-red-700");
+  }
+}
+loadPyodideEnv();
+
+async function runCode(code, inputs) {
+  const wrappedCode = `
+import sys, builtins
+from io import StringIO
+_inputs = ${JSON.stringify(inputs)}
+_idx = 0
+def _mock_input(prompt=""):
+    global _idx
+    if _idx < len(_inputs):
+        v = _inputs[_idx]; _idx += 1; return v
+    return ""
+builtins.input = _mock_input
+sys.stdout = StringIO()
+_err = ""
+try:
+    exec(${JSON.stringify(code)})
+except Exception as e:
+    _err = str(e)
+_out = sys.stdout.getvalue()
+sys.stdout = sys.__stdout__
+(_out, _err)
+`;
+  try {
+    const result = await pyodide.runPythonAsync(wrappedCode);
+    return [result.get(0) || "", result.get(1) || ""];
+  } catch(e) {
+    return ["", String(e)];
+  }
+}
+
+// Bouton Exécuter dans la modal soumission
+document.getElementById("m-run-btn").addEventListener("click", async () => {
+  if (!pyodide) return alert("Python se charge encore, patientez…");
+  const code = document.getElementById("m-code").textContent;
+  const inputsRaw = document.getElementById("m-run-inputs").value.trim();
+  const inputs = inputsRaw ? inputsRaw.split(";").map(s => s.trim()) : [];
+  const btn = document.getElementById("m-run-btn");
+  btn.textContent = "⏳";
+  btn.disabled = true;
+  const [output, err] = await runCode(code, inputs);
+  const outEl = document.getElementById("m-run-output");
+  outEl.textContent = output + (err ? "\n--- ERREUR ---\n" + err : "") || "(aucune sortie)";
+  outEl.classList.remove("hidden");
+  btn.textContent = "Exécuter";
+  btn.disabled = false;
+});
+
+document.getElementById("m-toggle-inputs").addEventListener("click", () => {
+  const sec = document.getElementById("m-run-input-section");
+  sec.classList.toggle("hidden");
+  document.getElementById("m-toggle-inputs").textContent =
+    sec.classList.contains("hidden") ? "+ inputs" : "- inputs";
+});
+
 </script>
 </body>
 </html>
