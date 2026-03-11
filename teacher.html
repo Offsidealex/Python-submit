@@ -359,6 +359,11 @@ function viewSubmission(id) {
   document.getElementById("m-date").textContent = formatDate(s.submitted_at);
   document.getElementById("m-code").textContent = s.code;
   document.getElementById("m-output").textContent = s.output || "(aucune sortie)";
+  document.getElementById("m-grade-input").value = s.grade !== null && s.grade !== undefined ? s.grade : "";
+  document.getElementById("m-grade-saved").classList.add("hidden");
+  document.getElementById("m-run-output").classList.add("hidden");
+  document.getElementById("m-run-inputs").value = "";
+  document.getElementById("m-save-grade-btn").dataset.subId = s.id;
   const tests = s.test_results || [];
   const testSec = document.getElementById("m-tests-section");
   if (tests.length) {
