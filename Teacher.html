@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Professeur – Python Submit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+    .tab-btn.active { border-bottom: 3px solid #1d4ed8; color: #1d4ed8; font-weight: 600; }
+    pre { white-space: pre-wrap; word-break: break-all; }
+    .badge-pass { background:#dcfce7; color:#166534; }
+    .badge-fail { background:#fee2e2; color:#991b1b; }
+    dialog::backdrop { background: rgba(0,0,0,.5); }
+    dialog { border-radius: 1rem; box-shadow: 0 20px 60px rgba(0,0,0,.3); max-width: 700px; width: 95vw; padding: 0; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- ─── Login ──────────────────────────────────────────────────────────────── -->
+<div id="login-screen" class="min-h-screen flex items-center justify-center">
+  <div class="bg-white shadow-xl rounded-2xl p-10 w-full max-w-sm space-y-6">
+    <div class="text-center">
+      <div class="text-4xl mb-2">🔐</div>
+      <h1 class="text-2xl font-bold text-gray-800">Espace Professeur</h1>
+      <p class="text-sm text-gray-500">Lycée Denis Diderot</p>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+      <input id="pwd-input" type="password" placeholder="••••••••"
+        class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+      <p id="login-error" class="text-red-500 text-xs mt-1 hidden">Mot de passe incorrect.</p>
+    </div>
+    <button id="login-btn"
+      class="w-full bg-blue-700 hover:bg-blue-800 text-white py-2 rounded-lg font-medium transition">
+      Se connecter
+    </button>
+  </div>
+</div>
+
+<!-- ─── Dashboard ─────────────────────────────────────────────────────────── -->
+<div id="dashboard" class="hidden">
+
+  <!-- Header -->
+  <header class="bg-blue-700 text-white shadow">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold">🐍 Dashboard Professeur</h1>
+        <p class="text-blue-200 text-sm">Lycée Denis Diderot – Belfort</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <div id="stats-header" class="text-xs text-blue-200"></div>
+        <button id="logout-btn"
+          class="text-sm bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded-lg transition">
+          Déconnexion
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <div class="bg-white border-b sticky top-0 z-10">
+    <div class="max-w-6xl mx-auto px-4 flex gap-0">
+      <button class="tab-btn active px-6 py-4 text-sm" data-tab="submissions">
+        📥 Soumissions
+      </button>
+      <button class="tab-btn px-6 py-4 text-sm text-gray-500" data-tab="exercises">
+        📋 Exercices
+      </button>
+    </div>
+  </div>
+
+  <main class="max-w-6xl mx-auto px-4 py-8">
+
+    <!-- ── Onglet Soumissions ───────────────────────────────────────────────── -->
+    <div id="tab-submissions">
+      <!-- Filtres -->
+      <div class="bg-white rounded-xl shadow p-5 mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <select id="filter-exercise"
+          class="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <option value="">Tous les exercices</option>
+        </select>
+        <input id="filter-class" type="text" placeholder="Filtrer par classe"
+          class="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+        <input id="filter-name" type="text" placeholder="Filtrer par nom"
+          class="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+        <button id="filter-btn"
+          class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+          🔍 Filtrer
+        </button>
+      </div>
+
+      <!-- Table -->
+      <div class="bg-white rounded-xl shadow overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-600 text-xs uppercase">
+              <tr>
+                <th class="px-4 py-3 text-left">Étudiant</th>
+                <th class="px-4 py-3 text-left">Classe</th>
+                <th class="px-4 py-3 text-left">Exercice</th>
+                <th class="px-4 py-3 text-left">Tests</th>
+                <th class="px-4 py-3 text-left">Date</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="submissions-tbody" class="divide-y divide-gray-100">
+              <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">Chargement…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Onglet Exercices ─────────────────────────────────────────────────── -->
+    <div id="tab-exercises" class="hidden space-y-6">
+      <div class="flex justify-end">
+        <button id="new-exercise-btn"
+          class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+          + Nouvel exercice
+        </button>
+      </div>
+      <div id="exercises-list" class="space-y-3">
+        <p class="text-center text-gray-400 py-8">Chargement…</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ─── Modal : voir soumission ────────────────────────────────────────────── -->
+<dialog id="modal-submission">
+  <div class="bg-white rounded-2xl overflow-hidden">
+    <div class="bg-blue-700 text-white px-6 py-4 flex items-center justify-between">
+      <h2 class="font-bold text-lg" id="modal-title">Soumission</h2>
+      <button onclick="document.getElementById('modal-submission').close()"
+        class="hover:bg-blue-800 rounded-full w-8 h-8 flex items-center justify-center transition text-lg">✕</button>
+    </div>
+    <div class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+      <div class="grid grid-cols-2 gap-4 text-sm">
+        <div><span class="text-gray-500">Étudiant :</span> <b id="m-student"></b></div>
+        <div><span class="text-gray-500">Classe :</span> <b id="m-class"></b></div>
+        <div><span class="text-gray-500">Exercice :</span> <b id="m-exercise"></b></div>
+        <div><span class="text-gray-500">Date :</span> <b id="m-date"></b></div>
+      </div>
+      <div>
+        <h3 class="font-semibold text-gray-700 mb-2">Code soumis</h3>
+        <pre id="m-code" class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono"></pre>
+      </div>
+      <div id="m-output-section">
+        <h3 class="font-semibold text-gray-700 mb-2">Sortie produite</h3>
+        <pre id="m-output" class="bg-gray-100 rounded-lg p-3 text-xs font-mono"></pre>
+      </div>
+      <div id="m-tests-section" class="hidden">
+        <h3 class="font-semibold text-gray-700 mb-2">Résultats des tests</h3>
+        <div id="m-tests" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- ─── Modal : créer / éditer exercice ────────────────────────────────────── -->
+<dialog id="modal-exercise">
+  <div class="bg-white rounded-2xl overflow-hidden">
+    <div class="bg-blue-700 text-white px-6 py-4 flex items-center justify-between">
+      <h2 class="font-bold text-lg" id="ex-modal-title">Nouvel exercice</h2>
+      <button onclick="document.getElementById('modal-exercise').close()"
+        class="hover:bg-blue-800 rounded-full w-8 h-8 flex items-center justify-center transition text-lg">✕</button>
+    </div>
+    <div class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Titre *</label>
+        <input id="ex-title" type="text" placeholder="Ex : TP1 – Boucles for"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Énoncé / Description</label>
+        <textarea id="ex-desc" rows="5" placeholder="Décrivez l'exercice…"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Date limite</label>
+        <input id="ex-deadline" type="datetime-local"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+      </div>
+
+      <!-- Tests automatiques -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-sm font-medium text-gray-700">🧪 Tests automatiques</label>
+          <button id="add-test-btn"
+            class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-lg transition">
+            + Ajouter un test
+          </button>
+        </div>
+        <div id="tests-editor" class="space-y-3"></div>
+        <p class="text-xs text-gray-400 mt-2">
+          💡 Chaque test simule les entrées <code>input()</code> de l'élève et vérifie ce qu'affiche le programme.
+        </p>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button id="save-exercise-btn"
+          class="flex-1 bg-blue-700 hover:bg-blue-800 text-white py-2 rounded-lg font-medium transition text-sm">
+          💾 Enregistrer
+        </button>
+        <button onclick="document.getElementById('modal-exercise').close()"
+          class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg font-medium transition text-sm">
+          Annuler
+        </button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const API_URL = "https://python-submit.onrender.com"; // ← REMPLACER après déploiement
+
+let teacherPassword = "";
+let currentExerciseEdit = null;
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+async function login() {
+  const pwd = document.getElementById("pwd-input").value;
+  try {
+    const res = await fetch(`${API_URL}/stats`, {
+      headers: { "x-teacher-password": pwd }
+    });
+    if (!res.ok) throw new Error();
+    teacherPassword = pwd;
+    const stats = await res.json();
+    document.getElementById("login-screen").classList.add("hidden");
+    document.getElementById("dashboard").classList.remove("hidden");
+    document.getElementById("stats-header").textContent =
+      `${stats.total_submissions} soumissions · ${stats.total_exercises} exercices`;
+    loadAll();
+  } catch {
+    document.getElementById("login-error").classList.remove("hidden");
+  }
+}
+
+document.getElementById("login-btn").addEventListener("click", login);
+document.getElementById("pwd-input").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+document.getElementById("logout-btn").addEventListener("click", () => {
+  teacherPassword = "";
+  document.getElementById("login-screen").classList.remove("hidden");
+  document.getElementById("dashboard").classList.add("hidden");
+});
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-submissions").classList.toggle("hidden", btn.dataset.tab !== "submissions");
+    document.getElementById("tab-exercises").classList.toggle("hidden", btn.dataset.tab !== "exercises");
+  });
+});
+
+function loadAll() {
+  loadSubmissions();
+  loadExercises();
+  loadExerciseFilter();
+}
+
+// ─── Soumissions ──────────────────────────────────────────────────────────────
+async function loadSubmissions() {
+  const params = new URLSearchParams();
+  const ex = document.getElementById("filter-exercise").value;
+  const cls = document.getElementById("filter-class").value.trim();
+  const name = document.getElementById("filter-name").value.trim();
+  if (ex) params.append("exercise_id", ex);
+  if (cls) params.append("class_id", cls);
+  if (name) params.append("student_name", name);
+
+  const tbody = document.getElementById("submissions-tbody");
+  tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">Chargement…</td></tr>';
+
+  try {
+    const res = await fetch(`${API_URL}/submissions?${params}`, {
+      headers: { "x-teacher-password": teacherPassword }
+    });
+    const subs = await res.json();
+    if (!subs.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">Aucune soumission.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = subs.map(s => {
+      const tr = s.test_results || [];
+      const passed = tr.filter(t => t.passed).length;
+      const badge = tr.length === 0
+        ? '<span class="text-xs text-gray-400">—</span>'
+        : `<span class="text-xs px-2 py-1 rounded-full ${passed === tr.length ? "badge-pass" : "badge-fail"}">${passed}/${tr.length}</span>`;
+      return `
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3 font-medium">${esc(s.student_name)}</td>
+          <td class="px-4 py-3 text-gray-500">${esc(s.class_id)}</td>
+          <td class="px-4 py-3">${esc(s.exercise_title)}</td>
+          <td class="px-4 py-3">${badge}</td>
+          <td class="px-4 py-3 text-gray-400 text-xs">${formatDate(s.submitted_at)}</td>
+          <td class="px-4 py-3 flex gap-2">
+            <button onclick="viewSubmission(${s.id})" data-sub='${JSON.stringify(s)}'
+              class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg transition">
+              👁 Voir
+            </button>
+            <button onclick="deleteSubmission(${s.id})"
+              class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg transition">
+              🗑
+            </button>
+          </td>
+        </tr>`;
+    }).join("");
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-red-400">Erreur : ${e.message}</td></tr>`;
+  }
+}
+
+document.getElementById("filter-btn").addEventListener("click", loadSubmissions);
+
+function viewSubmission(id) {
+  const btn = document.querySelector(`button[onclick="viewSubmission(${id})"]`);
+  const s = JSON.parse(btn.dataset.sub);
+  document.getElementById("modal-title").textContent = `Soumission #${s.id}`;
+  document.getElementById("m-student").textContent = s.student_name;
+  document.getElementById("m-class").textContent = s.class_id;
+  document.getElementById("m-exercise").textContent = s.exercise_title;
+  document.getElementById("m-date").textContent = formatDate(s.submitted_at);
+  document.getElementById("m-code").textContent = s.code;
+  document.getElementById("m-output").textContent = s.output || "(aucune sortie)";
+  const tests = s.test_results || [];
+  const testSec = document.getElementById("m-tests-section");
+  if (tests.length) {
+    testSec.classList.remove("hidden");
+    document.getElementById("m-tests").innerHTML = tests.map(t =>
+      `<div class="rounded-lg p-3 text-xs ${t.passed ? "badge-pass" : "badge-fail"}">
+        <b>${t.passed ? "✅" : "❌"} ${esc(t.label || "Test")}</b>
+        ${!t.passed ? `<div>Attendu : <code>${esc(t.expected)}</code></div>
+                       <div>Obtenu  : <code>${esc(t.actual)}</code></div>` : ""}
+        ${t.error ? `<div>Erreur : ${esc(t.error)}</div>` : ""}
+      </div>`
+    ).join("");
+  } else testSec.classList.add("hidden");
+  document.getElementById("modal-submission").showModal();
+}
+
+async function deleteSubmission(id) {
+  if (!confirm("Supprimer cette soumission ?")) return;
+  await fetch(`${API_URL}/submissions/${id}`, {
+    method: "DELETE",
+    headers: { "x-teacher-password": teacherPassword }
+  });
+  loadSubmissions();
+}
+
+// ─── Exercices ────────────────────────────────────────────────────────────────
+async function loadExercises() {
+  try {
+    const res = await fetch(`${API_URL}/exercises`);
+    const exercises = await res.json();
+    const listEl = document.getElementById("exercises-list");
+    if (!exercises.length) {
+      listEl.innerHTML = '<p class="text-center text-gray-400 py-8">Aucun exercice. Créez-en un !</p>';
+      return;
+    }
+    listEl.innerHTML = exercises.map(ex => `
+      <div class="bg-white rounded-xl shadow p-5 flex items-start justify-between gap-4">
+        <div>
+          <h3 class="font-semibold text-gray-800">${esc(ex.title)}</h3>
+          ${ex.description ? `<p class="text-sm text-gray-500 mt-1 line-clamp-2">${esc(ex.description)}</p>` : ""}
+          ${ex.deadline ? `<p class="text-xs text-orange-500 mt-1">⏰ ${formatDate(ex.deadline)}</p>` : ""}
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <button onclick="editExercise(${ex.id})"
+            class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-lg transition">
+            ✏️ Modifier
+          </button>
+          <button onclick="deleteExercise(${ex.id})"
+            class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg transition">
+            🗑
+          </button>
+        </div>
+      </div>`
+    ).join("");
+  } catch (e) {
+    document.getElementById("exercises-list").innerHTML =
+      `<p class="text-red-400 text-center">Erreur : ${e.message}</p>`;
+  }
+}
+
+async function loadExerciseFilter() {
+  const res = await fetch(`${API_URL}/exercises`);
+  const exercises = await res.json();
+  const sel = document.getElementById("filter-exercise");
+  sel.innerHTML = '<option value="">Tous les exercices</option>';
+  exercises.forEach(ex => {
+    const opt = document.createElement("option");
+    opt.value = ex.id;
+    opt.textContent = ex.title;
+    sel.appendChild(opt);
+  });
+}
+
+// ─── Créer / Éditer exercice ──────────────────────────────────────────────────
+document.getElementById("new-exercise-btn").addEventListener("click", () => {
+  currentExerciseEdit = null;
+  document.getElementById("ex-modal-title").textContent = "Nouvel exercice";
+  document.getElementById("ex-title").value = "";
+  document.getElementById("ex-desc").value = "";
+  document.getElementById("ex-deadline").value = "";
+  document.getElementById("tests-editor").innerHTML = "";
+  document.getElementById("modal-exercise").showModal();
+});
+
+async function editExercise(id) {
+  const res = await fetch(`${API_URL}/exercises/${id}`);
+  const ex = await res.json();
+  currentExerciseEdit = ex;
+  document.getElementById("ex-modal-title").textContent = "Modifier l'exercice";
+  document.getElementById("ex-title").value = ex.title;
+  document.getElementById("ex-desc").value = ex.description || "";
+  document.getElementById("ex-deadline").value = ex.deadline
+    ? ex.deadline.replace("Z", "").substring(0, 16) : "";
+  const editor = document.getElementById("tests-editor");
+  editor.innerHTML = "";
+  (ex.test_cases || []).forEach(tc => addTestRow(tc));
+  document.getElementById("modal-exercise").showModal();
+}
+
+async function deleteExercise(id) {
+  if (!confirm("Supprimer cet exercice et toutes ses soumissions ?")) return;
+  await fetch(`${API_URL}/exercises/${id}`, {
+    method: "DELETE",
+    headers: { "x-teacher-password": teacherPassword }
+  });
+  loadExercises();
+  loadExerciseFilter();
+}
+
+document.getElementById("add-test-btn").addEventListener("click", () => addTestRow());
+
+function addTestRow(tc = {}) {
+  const div = document.createElement("div");
+  div.className = "border rounded-xl p-4 space-y-2 bg-gray-50 relative";
+  div.innerHTML = `
+    <button type="button" class="absolute top-2 right-2 text-gray-300 hover:text-red-400 text-lg"
+      onclick="this.parentElement.remove()">✕</button>
+    <div>
+      <label class="text-xs font-medium text-gray-600">Libellé du test</label>
+      <input type="text" class="tc-label w-full border rounded px-2 py-1 text-xs mt-1"
+        placeholder="Ex : Test n=5" value="${esc(tc.label || "")}" />
+    </div>
+    <div>
+      <label class="text-xs font-medium text-gray-600">
+        Valeurs <code>input()</code> (une par ligne)
+      </label>
+      <textarea class="tc-inputs w-full border rounded px-2 py-1 text-xs mt-1 font-mono" rows="3"
+        placeholder="5&#10;3">${esc((tc.inputs || []).join("\n"))}</textarea>
+    </div>
+    <div>
+      <label class="text-xs font-medium text-gray-600">Sortie attendue (stdout exact)</label>
+      <textarea class="tc-expected w-full border rounded px-2 py-1 text-xs mt-1 font-mono" rows="3"
+        placeholder="8">${esc(tc.expected_output || "")}</textarea>
+    </div>`;
+  document.getElementById("tests-editor").appendChild(div);
+}
+
+document.getElementById("save-exercise-btn").addEventListener("click", async () => {
+  const title = document.getElementById("ex-title").value.trim();
+  if (!title) return alert("Le titre est obligatoire.");
+
+  const testRows = document.querySelectorAll("#tests-editor > div");
+  const test_cases = Array.from(testRows).map(row => ({
+    label: row.querySelector(".tc-label").value.trim(),
+    inputs: row.querySelector(".tc-inputs").value.trim().split("\n").filter(Boolean),
+    expected_output: row.querySelector(".tc-expected").value,
+  }));
+
+  const body = {
+    title,
+    description: document.getElementById("ex-desc").value,
+    deadline: document.getElementById("ex-deadline").value || null,
+    test_cases,
+  };
+
+  const method = currentExerciseEdit ? "PUT" : "POST";
+  const url = currentExerciseEdit
+    ? `${API_URL}/exercises/${currentExerciseEdit.id}`
+    : `${API_URL}/exercises`;
+
+  await fetch(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "x-teacher-password": teacherPassword,
+    },
+    body: JSON.stringify(body),
+  });
+
+  document.getElementById("modal-exercise").close();
+  loadExercises();
+  loadExerciseFilter();
+});
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function formatDate(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("fr-FR", {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit"
+  });
+}
+function esc(s) {
+  return String(s || "")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
+</script>
+</body>
+</html>
