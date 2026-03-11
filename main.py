@@ -47,9 +47,15 @@ def init_db():
             code TEXT NOT NULL,
             output TEXT DEFAULT '',
             test_results TEXT DEFAULT '[]',
+            grade NUMERIC,
             submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Ajouter colonne grade si elle n'existe pas (migration)
+    try:
+        cur.execute("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS grade NUMERIC")
+    except Exception:
+        pass
     conn.commit()
     cur.close()
     conn.close()
@@ -82,6 +88,9 @@ class SubmissionCreate(BaseModel):
     code: str
     output: str = ""
     test_results: List[dict] = []
+
+class GradeUpdate(BaseModel):
+    grade: Optional[float] = None
 
 
 @app.get("/exercises")
@@ -188,8 +197,45 @@ def list_submissions(
     for r in rows:
         d = dict(r)
         d["test_results"] = json.loads(d["test_results"])
+        d["grade"] = float(d["grade"]) if d["grade"] is not None else None
         result.append(d)
     return result
+
+
+@app.get("/submissions/student")
+def list_student_submissions(
+    student_name: str = Query(...),
+    class_id: str = Query(...),
+):
+    """Soumissions visibles par l'élève (sans auth) — uniquement ses propres données"""
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT s.id, s.exercise_id, s.code, s.output, s.test_results,
+               s.grade, s.submitted_at, e.title AS exercise_title
+        FROM submissions s
+        JOIN exercises e ON s.exercise_id = e.id
+        WHERE s.student_name ILIKE %s AND s.class_id = %s
+        ORDER BY s.submitted_at DESC
+    """, (student_name.strip(), class_id))
+    rows = cur.fetchall()
+    cur.close(); conn.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["test_results"] = json.loads(d["test_results"])
+        d["grade"] = float(d["grade"]) if d["grade"] is not None else None
+        result.append(d)
+    return result
+
+
+@app.patch("/submissions/{submission_id}/grade")
+def set_grade(submission_id: int, body: GradeUpdate, auth=Depends(check_teacher)):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE submissions SET grade=%s WHERE id=%s", (body.grade, submission_id))
+    conn.commit(); cur.close(); conn.close()
+    return {"message": "Note enregistrée"}
 
 
 @app.delete("/submissions/{submission_id}")
