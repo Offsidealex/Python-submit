@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dépôt Python – Lycée Denis Diderot</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+  <script>window._loadPyodide = loadPyodide;</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+  
   <style>
     body { font-family: 'Segoe UI', system-ui, sans-serif; }
     #editor { height: 380px; border: 1px solid #d1d5db; border-radius: 0.5rem; overflow: hidden; }
@@ -156,7 +158,7 @@ require(["vs/editor/editor.main"], () => {
 
 // ─── Pyodide ─────────────────────────────────────────────────────────────────
 async function loadPyodideEnv() {
-  pyodide = await loadPyodide();
+  pyodide = await window._loadPyodide();
   const statusEl = document.getElementById("pyodide-status");
   statusEl.innerHTML = "✅ Python prêt";
   statusEl.classList.replace("bg-blue-800", "bg-green-700");
