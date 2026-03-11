@@ -77,6 +77,7 @@
 
     <!-- ── Onglet Soumissions ───────────────────────────────────────────────── -->
     <div id="tab-submissions">
+      <!-- Filtres -->
       <div class="bg-white rounded-xl shadow p-5 mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3">
         <select id="filter-exercise"
           class="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
@@ -92,6 +93,7 @@
         </button>
       </div>
 
+      <!-- Table -->
       <div class="bg-white rounded-xl shadow overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -101,6 +103,7 @@
                 <th class="px-4 py-3 text-left">Classe</th>
                 <th class="px-4 py-3 text-left">Exercice</th>
                 <th class="px-4 py-3 text-left">Tests</th>
+                <th class="px-4 py-3 text-left">Note</th>
                 <th class="px-4 py-3 text-left">Date</th>
                 <th class="px-4 py-3 text-left">Actions</th>
               </tr>
@@ -149,8 +152,19 @@
         <pre id="m-code" class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono"></pre>
       </div>
       <div id="m-output-section">
-        <h3 class="font-semibold text-gray-700 mb-2">Sortie produite par l'élève</h3>
+        <h3 class="font-semibold text-gray-700 mb-2">Sortie produite</h3>
         <pre id="m-output" class="bg-gray-100 rounded-lg p-3 text-xs font-mono"></pre>
+      </div>
+      <div class="flex items-center gap-4 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+        <label class="text-sm font-semibold text-gray-700 shrink-0">📝 Note (/20) :</label>
+        <input id="m-grade-input" type="number" min="0" max="20" step="0.5"
+          class="w-24 border rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-yellow-400 focus:outline-none"
+          placeholder="ex: 14" />
+        <button id="m-save-grade-btn"
+          class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-4 py-1 rounded-lg text-sm font-medium transition">
+          💾 Enregistrer
+        </button>
+        <span id="m-grade-saved" class="text-xs text-green-600 hidden">✅ Enregistré</span>
       </div>
       <div>
         <div class="flex items-center gap-3 mb-2">
@@ -160,7 +174,7 @@
             Exécuter
           </button>
           <div id="m-run-input-section" class="flex gap-2 items-center hidden">
-            <input id="m-run-inputs" type="text" placeholder="Valeurs input() séparées par ;"
+            <input id="m-run-inputs" type="text" placeholder="Valeurs input() séparées par ;" 
               class="border rounded px-2 py-1 text-xs w-48" />
           </div>
           <button id="m-toggle-inputs" class="text-xs text-gray-400 hover:text-gray-600">+ inputs</button>
@@ -199,6 +213,8 @@
         <input id="ex-deadline" type="datetime-local"
           class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
       </div>
+
+      <!-- Tests automatiques -->
       <div>
         <div class="flex items-center justify-between mb-2">
           <label class="text-sm font-medium text-gray-700">🧪 Tests automatiques</label>
@@ -212,6 +228,7 @@
           💡 Chaque test simule les entrées <code>input()</code> de l'élève et vérifie ce qu'affiche le programme.
         </p>
       </div>
+
       <div class="flex gap-3 pt-2">
         <button id="save-exercise-btn"
           class="flex-1 bg-blue-700 hover:bg-blue-800 text-white py-2 rounded-lg font-medium transition text-sm">
@@ -227,15 +244,19 @@
 </dialog>
 
 <script>
-const API_URL = "https://python-submit.onrender.com";
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const API_URL = "https://python-submit.onrender.com"; // ← REMPLACER après déploiement
 
 let teacherPassword = "";
 let currentExerciseEdit = null;
 
+// ─── Login ────────────────────────────────────────────────────────────────────
 async function login() {
   const pwd = document.getElementById("pwd-input").value;
   try {
-    const res = await fetch(`${API_URL}/stats`, { headers: { "x-teacher-password": pwd } });
+    const res = await fetch(`${API_URL}/stats`, {
+      headers: { "x-teacher-password": pwd }
+    });
     if (!res.ok) throw new Error();
     teacherPassword = pwd;
     const stats = await res.json();
@@ -244,7 +265,9 @@ async function login() {
     document.getElementById("stats-header").textContent =
       `${stats.total_submissions} soumissions · ${stats.total_exercises} exercices`;
     loadAll();
-  } catch { document.getElementById("login-error").classList.remove("hidden"); }
+  } catch {
+    document.getElementById("login-error").classList.remove("hidden");
+  }
 }
 
 document.getElementById("login-btn").addEventListener("click", login);
@@ -255,6 +278,7 @@ document.getElementById("logout-btn").addEventListener("click", () => {
   document.getElementById("dashboard").classList.add("hidden");
 });
 
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -264,8 +288,13 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
   });
 });
 
-function loadAll() { loadSubmissions(); loadExercises(); loadExerciseFilter(); }
+function loadAll() {
+  loadSubmissions();
+  loadExercises();
+  loadExerciseFilter();
+}
 
+// ─── Soumissions ──────────────────────────────────────────────────────────────
 async function loadSubmissions() {
   const params = new URLSearchParams();
   const ex = document.getElementById("filter-exercise").value;
@@ -274,31 +303,48 @@ async function loadSubmissions() {
   if (ex) params.append("exercise_id", ex);
   if (cls) params.append("class_id", cls);
   if (name) params.append("student_name", name);
+
   const tbody = document.getElementById("submissions-tbody");
   tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">Chargement…</td></tr>';
+
   try {
-    const res = await fetch(`${API_URL}/submissions?${params}`, { headers: { "x-teacher-password": teacherPassword } });
+    const res = await fetch(`${API_URL}/submissions?${params}`, {
+      headers: { "x-teacher-password": teacherPassword }
+    });
     const subs = await res.json();
-    if (!subs.length) { tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">Aucune soumission.</td></tr>'; return; }
+    if (!subs.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">Aucune soumission.</td></tr>';
+      return;
+    }
     tbody.innerHTML = subs.map(s => {
       const tr = s.test_results || [];
       const passed = tr.filter(t => t.passed).length;
       const badge = tr.length === 0
         ? '<span class="text-xs text-gray-400">—</span>'
         : `<span class="text-xs px-2 py-1 rounded-full ${passed === tr.length ? "badge-pass" : "badge-fail"}">${passed}/${tr.length}</span>`;
-      return `<tr class="hover:bg-gray-50">
-        <td class="px-4 py-3 font-medium">${esc(s.student_name)}</td>
-        <td class="px-4 py-3 text-gray-500">${esc(s.class_id)}</td>
-        <td class="px-4 py-3">${esc(s.exercise_title)}</td>
-        <td class="px-4 py-3">${badge}</td>
-        <td class="px-4 py-3 text-gray-400 text-xs">${formatDate(s.submitted_at)}</td>
-        <td class="px-4 py-3 flex gap-2">
-          <button onclick="viewSubmission(${s.id})" data-sub='${JSON.stringify(s)}'
-            class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg transition">👁 Voir</button>
-          <button onclick="deleteSubmission(${s.id})"
-            class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg transition">🗑</button>
-        </td>
-      </tr>`;
+      return `
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3 font-medium">${esc(s.student_name)}</td>
+          <td class="px-4 py-3 text-gray-500">${esc(s.class_id)}</td>
+          <td class="px-4 py-3">${esc(s.exercise_title)}</td>
+          <td class="px-4 py-3">${badge}</td>
+          <td class="px-4 py-3">
+            ${s.grade !== null && s.grade !== undefined
+              ? `<span class="text-sm font-bold text-blue-700">${s.grade}/20</span>`
+              : '<span class="text-xs text-gray-300">—</span>'}
+          </td>
+          <td class="px-4 py-3 text-gray-400 text-xs">${formatDate(s.submitted_at)}</td>
+          <td class="px-4 py-3 flex gap-2">
+            <button onclick="viewSubmission(${s.id})" data-sub='${JSON.stringify(s)}'
+              class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg transition">
+              👁 Voir
+            </button>
+            <button onclick="deleteSubmission(${s.id})"
+              class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg transition">
+              🗑
+            </button>
+          </td>
+        </tr>`;
     }).join("");
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-red-400">Erreur : ${e.message}</td></tr>`;
@@ -317,8 +363,6 @@ function viewSubmission(id) {
   document.getElementById("m-date").textContent = formatDate(s.submitted_at);
   document.getElementById("m-code").textContent = s.code;
   document.getElementById("m-output").textContent = s.output || "(aucune sortie)";
-  document.getElementById("m-run-output").classList.add("hidden");
-  document.getElementById("m-run-inputs").value = "";
   const tests = s.test_results || [];
   const testSec = document.getElementById("m-tests-section");
   if (tests.length) {
@@ -326,7 +370,8 @@ function viewSubmission(id) {
     document.getElementById("m-tests").innerHTML = tests.map(t =>
       `<div class="rounded-lg p-3 text-xs ${t.passed ? "badge-pass" : "badge-fail"}">
         <b>${t.passed ? "✅" : "❌"} ${esc(t.label || "Test")}</b>
-        ${!t.passed ? `<div>Attendu : <code>${esc(t.expected)}</code></div><div>Obtenu : <code>${esc(t.actual)}</code></div>` : ""}
+        ${!t.passed ? `<div>Attendu : <code>${esc(t.expected)}</code></div>
+                       <div>Obtenu  : <code>${esc(t.actual)}</code></div>` : ""}
         ${t.error ? `<div>Erreur : ${esc(t.error)}</div>` : ""}
       </div>`
     ).join("");
@@ -336,16 +381,23 @@ function viewSubmission(id) {
 
 async function deleteSubmission(id) {
   if (!confirm("Supprimer cette soumission ?")) return;
-  await fetch(`${API_URL}/submissions/${id}`, { method: "DELETE", headers: { "x-teacher-password": teacherPassword } });
+  await fetch(`${API_URL}/submissions/${id}`, {
+    method: "DELETE",
+    headers: { "x-teacher-password": teacherPassword }
+  });
   loadSubmissions();
 }
 
+// ─── Exercices ────────────────────────────────────────────────────────────────
 async function loadExercises() {
   try {
     const res = await fetch(`${API_URL}/exercises`);
     const exercises = await res.json();
     const listEl = document.getElementById("exercises-list");
-    if (!exercises.length) { listEl.innerHTML = '<p class="text-center text-gray-400 py-8">Aucun exercice. Créez-en un !</p>'; return; }
+    if (!exercises.length) {
+      listEl.innerHTML = '<p class="text-center text-gray-400 py-8">Aucun exercice. Créez-en un !</p>';
+      return;
+    }
     listEl.innerHTML = exercises.map(ex => `
       <div class="bg-white rounded-xl shadow p-5 flex items-start justify-between gap-4">
         <div>
@@ -354,12 +406,21 @@ async function loadExercises() {
           ${ex.deadline ? `<p class="text-xs text-orange-500 mt-1">⏰ ${formatDate(ex.deadline)}</p>` : ""}
         </div>
         <div class="flex gap-2 shrink-0">
-          <button onclick="editExercise(${ex.id})" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-lg transition">✏️ Modifier</button>
-          <button onclick="deleteExercise(${ex.id})" class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg transition">🗑</button>
+          <button onclick="editExercise(${ex.id})"
+            class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-lg transition">
+            ✏️ Modifier
+          </button>
+          <button onclick="deleteExercise(${ex.id})"
+            class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg transition">
+            🗑
+          </button>
         </div>
       </div>`
     ).join("");
-  } catch (e) { document.getElementById("exercises-list").innerHTML = `<p class="text-red-400 text-center">Erreur : ${e.message}</p>`; }
+  } catch (e) {
+    document.getElementById("exercises-list").innerHTML =
+      `<p class="text-red-400 text-center">Erreur : ${e.message}</p>`;
+  }
 }
 
 async function loadExerciseFilter() {
@@ -367,9 +428,15 @@ async function loadExerciseFilter() {
   const exercises = await res.json();
   const sel = document.getElementById("filter-exercise");
   sel.innerHTML = '<option value="">Tous les exercices</option>';
-  exercises.forEach(ex => { const opt = document.createElement("option"); opt.value = ex.id; opt.textContent = ex.title; sel.appendChild(opt); });
+  exercises.forEach(ex => {
+    const opt = document.createElement("option");
+    opt.value = ex.id;
+    opt.textContent = ex.title;
+    sel.appendChild(opt);
+  });
 }
 
+// ─── Créer / Éditer exercice ──────────────────────────────────────────────────
 document.getElementById("new-exercise-btn").addEventListener("click", () => {
   currentExerciseEdit = null;
   document.getElementById("ex-modal-title").textContent = "Nouvel exercice";
@@ -387,16 +454,22 @@ async function editExercise(id) {
   document.getElementById("ex-modal-title").textContent = "Modifier l'exercice";
   document.getElementById("ex-title").value = ex.title;
   document.getElementById("ex-desc").value = ex.description || "";
-  document.getElementById("ex-deadline").value = ex.deadline ? ex.deadline.replace("Z","").substring(0,16) : "";
-  document.getElementById("tests-editor").innerHTML = "";
+  document.getElementById("ex-deadline").value = ex.deadline
+    ? ex.deadline.replace("Z", "").substring(0, 16) : "";
+  const editor = document.getElementById("tests-editor");
+  editor.innerHTML = "";
   (ex.test_cases || []).forEach(tc => addTestRow(tc));
   document.getElementById("modal-exercise").showModal();
 }
 
 async function deleteExercise(id) {
   if (!confirm("Supprimer cet exercice et toutes ses soumissions ?")) return;
-  await fetch(`${API_URL}/exercises/${id}`, { method: "DELETE", headers: { "x-teacher-password": teacherPassword } });
-  loadExercises(); loadExerciseFilter();
+  await fetch(`${API_URL}/exercises/${id}`, {
+    method: "DELETE",
+    headers: { "x-teacher-password": teacherPassword }
+  });
+  loadExercises();
+  loadExerciseFilter();
 }
 
 document.getElementById("add-test-btn").addEventListener("click", () => addTestRow());
@@ -405,40 +478,93 @@ function addTestRow(tc = {}) {
   const div = document.createElement("div");
   div.className = "border rounded-xl p-4 space-y-2 bg-gray-50 relative";
   div.innerHTML = `
-    <button type="button" class="absolute top-2 right-2 text-gray-300 hover:text-red-400 text-lg" onclick="this.parentElement.remove()">✕</button>
-    <div><label class="text-xs font-medium text-gray-600">Libellé du test</label>
-      <input type="text" class="tc-label w-full border rounded px-2 py-1 text-xs mt-1" placeholder="Ex : Test n=5" value="${esc(tc.label || "")}" /></div>
-    <div><label class="text-xs font-medium text-gray-600">Valeurs <code>input()</code> (une par ligne)</label>
-      <textarea class="tc-inputs w-full border rounded px-2 py-1 text-xs mt-1 font-mono" rows="3" placeholder="5&#10;3">${esc((tc.inputs || []).join("\n"))}</textarea></div>
-    <div><label class="text-xs font-medium text-gray-600">Sortie attendue (stdout exact)</label>
-      <textarea class="tc-expected w-full border rounded px-2 py-1 text-xs mt-1 font-mono" rows="3" placeholder="8">${esc(tc.expected_output || "")}</textarea></div>`;
+    <button type="button" class="absolute top-2 right-2 text-gray-300 hover:text-red-400 text-lg"
+      onclick="this.parentElement.remove()">✕</button>
+    <div>
+      <label class="text-xs font-medium text-gray-600">Libellé du test</label>
+      <input type="text" class="tc-label w-full border rounded px-2 py-1 text-xs mt-1"
+        placeholder="Ex : Test n=5" value="${esc(tc.label || "")}" />
+    </div>
+    <div>
+      <label class="text-xs font-medium text-gray-600">
+        Valeurs <code>input()</code> (une par ligne)
+      </label>
+      <textarea class="tc-inputs w-full border rounded px-2 py-1 text-xs mt-1 font-mono" rows="3"
+        placeholder="5&#10;3">${esc((tc.inputs || []).join("\n"))}</textarea>
+    </div>
+    <div>
+      <label class="text-xs font-medium text-gray-600">Sortie attendue (stdout exact)</label>
+      <textarea class="tc-expected w-full border rounded px-2 py-1 text-xs mt-1 font-mono" rows="3"
+        placeholder="8">${esc(tc.expected_output || "")}</textarea>
+    </div>`;
   document.getElementById("tests-editor").appendChild(div);
 }
 
 document.getElementById("save-exercise-btn").addEventListener("click", async () => {
   const title = document.getElementById("ex-title").value.trim();
   if (!title) return alert("Le titre est obligatoire.");
+
   const testRows = document.querySelectorAll("#tests-editor > div");
   const test_cases = Array.from(testRows).map(row => ({
     label: row.querySelector(".tc-label").value.trim(),
     inputs: row.querySelector(".tc-inputs").value.trim().split("\n").filter(Boolean),
     expected_output: row.querySelector(".tc-expected").value,
   }));
-  const body = { title, description: document.getElementById("ex-desc").value, deadline: document.getElementById("ex-deadline").value || null, test_cases };
+
+  const body = {
+    title,
+    description: document.getElementById("ex-desc").value,
+    deadline: document.getElementById("ex-deadline").value || null,
+    test_cases,
+  };
+
   const method = currentExerciseEdit ? "PUT" : "POST";
-  const url = currentExerciseEdit ? `${API_URL}/exercises/${currentExerciseEdit.id}` : `${API_URL}/exercises`;
-  await fetch(url, { method, headers: { "Content-Type": "application/json", "x-teacher-password": teacherPassword }, body: JSON.stringify(body) });
+  const url = currentExerciseEdit
+    ? `${API_URL}/exercises/${currentExerciseEdit.id}`
+    : `${API_URL}/exercises`;
+
+  await fetch(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "x-teacher-password": teacherPassword,
+    },
+    body: JSON.stringify(body),
+  });
+
   document.getElementById("modal-exercise").close();
-  loadExercises(); loadExerciseFilter();
+  loadExercises();
+  loadExerciseFilter();
 });
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatDate(iso) {
   if (!iso) return "";
-  return new Date(iso).toLocaleString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleString("fr-FR", {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit"
+  });
 }
 function esc(s) {
-  return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  return String(s || "")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
 }
+
+// ─── Note ────────────────────────────────────────────────────────────────────
+document.getElementById('m-save-grade-btn').addEventListener('click', async () => {
+  const id = document.getElementById('m-save-grade-btn').dataset.subId;
+  const val = document.getElementById('m-grade-input').value;
+  const grade = val === '' ? null : parseFloat(val);
+  await fetch(`${API_URL}/submissions/${id}/grade`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'x-teacher-password': teacherPassword },
+    body: JSON.stringify({ grade })
+  });
+  document.getElementById('m-grade-saved').classList.remove('hidden');
+  setTimeout(() => document.getElementById('m-grade-saved').classList.add('hidden'), 2000);
+  loadSubmissions(); // Rafraîchir le tableau
+});
 
 // ─── Pyodide ──────────────────────────────────────────────────────────────────
 let pyodide = null;
@@ -448,7 +574,8 @@ async function loadPyodideEnv() {
     await new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js";
-      script.onload = resolve; script.onerror = reject;
+      script.onload = resolve;
+      script.onerror = reject;
       document.head.appendChild(script);
     });
     pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/" });
@@ -488,28 +615,35 @@ sys.stdout = sys.__stdout__
   try {
     const result = await pyodide.runPythonAsync(wrappedCode);
     return [result.get(0) || "", result.get(1) || ""];
-  } catch(e) { return ["", String(e)]; }
+  } catch(e) {
+    return ["", String(e)];
+  }
 }
 
+// Bouton Exécuter dans la modal soumission
 document.getElementById("m-run-btn").addEventListener("click", async () => {
   if (!pyodide) return alert("Python se charge encore, patientez…");
   const code = document.getElementById("m-code").textContent;
   const inputsRaw = document.getElementById("m-run-inputs").value.trim();
   const inputs = inputsRaw ? inputsRaw.split(";").map(s => s.trim()) : [];
   const btn = document.getElementById("m-run-btn");
-  btn.textContent = "⏳"; btn.disabled = true;
+  btn.textContent = "⏳";
+  btn.disabled = true;
   const [output, err] = await runCode(code, inputs);
   const outEl = document.getElementById("m-run-output");
   outEl.textContent = output + (err ? "\n--- ERREUR ---\n" + err : "") || "(aucune sortie)";
   outEl.classList.remove("hidden");
-  btn.textContent = "Exécuter"; btn.disabled = false;
+  btn.textContent = "Exécuter";
+  btn.disabled = false;
 });
 
 document.getElementById("m-toggle-inputs").addEventListener("click", () => {
   const sec = document.getElementById("m-run-input-section");
   sec.classList.toggle("hidden");
-  document.getElementById("m-toggle-inputs").textContent = sec.classList.contains("hidden") ? "+ inputs" : "- inputs";
+  document.getElementById("m-toggle-inputs").textContent =
+    sec.classList.contains("hidden") ? "+ inputs" : "- inputs";
 });
+
 </script>
 </body>
 </html>
