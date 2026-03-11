@@ -249,6 +249,7 @@ const API_URL = "https://python-submit.onrender.com"; // ← REMPLACER après d�
 
 let teacherPassword = "";
 let currentExerciseEdit = null;
+let currentSubmissionId = null;
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 async function login() {
@@ -363,7 +364,7 @@ function viewSubmission(id) {
   document.getElementById("m-grade-saved").classList.add("hidden");
   document.getElementById("m-run-output").classList.add("hidden");
   document.getElementById("m-run-inputs").value = "";
-  document.getElementById("m-save-grade-btn").dataset.subId = s.id;
+  currentSubmissionId = s.id;
   const tests = s.test_results || [];
   const testSec = document.getElementById("m-tests-section");
   if (tests.length) {
@@ -560,7 +561,7 @@ function gradeCell(grade) {
 }
 
 document.getElementById('m-save-grade-btn').addEventListener('click', async () => {
-  const id = document.getElementById('m-save-grade-btn').dataset.subId;
+  const id = currentSubmissionId;
   const val = document.getElementById('m-grade-input').value;
   const grade = val === '' ? null : parseFloat(val);
   const res = await fetch(`${API_URL}/submissions/${id}/grade`, {
