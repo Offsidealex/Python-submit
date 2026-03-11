@@ -6,123 +6,187 @@
   <title>Dépôt Python – Lycée Denis Diderot</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
-  
   <style>
     body { font-family: 'Segoe UI', system-ui, sans-serif; }
     #editor { height: 380px; border: 1px solid #d1d5db; border-radius: 0.5rem; overflow: hidden; }
     .badge-pass { background:#dcfce7; color:#166534; }
     .badge-fail { background:#fee2e2; color:#991b1b; }
-    .badge-warn { background:#fef9c3; color:#854d0e; }
     #pyodide-status { transition: all 0.3s; }
     .spin { animation: spin 1s linear infinite; display:inline-block; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .tab-btn.active { border-bottom: 3px solid #1d4ed8; color: #1d4ed8; font-weight: 600; }
+    dialog::backdrop { background: rgba(0,0,0,.5); }
+    dialog { border-radius: 1rem; box-shadow: 0 20px 60px rgba(0,0,0,.3); max-width: 650px; width: 95vw; padding: 0; }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
-<!-- ─── Header ─────────────────────────────────────────────────────────── -->
-<header class="bg-blue-700 text-white shadow">
-  <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+<!-- ─── Login élève ──────────────────────────────────────────────────────── -->
+<div id="login-screen" class="min-h-screen flex items-center justify-center">
+  <div class="bg-white shadow-xl rounded-2xl p-10 w-full max-w-sm space-y-6">
+    <div class="text-center">
+      <div class="text-4xl mb-2">🐍</div>
+      <h1 class="text-2xl font-bold text-gray-800">Dépôt Python</h1>
+      <p class="text-sm text-gray-500">Lycée Denis Diderot – Belfort</p>
+    </div>
     <div>
-      <h1 class="text-xl font-bold">🐍 Dépôt de programmes Python</h1>
-      <p class="text-blue-200 text-sm">Lycée Denis Diderot – Belfort</p>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Nom et prénom</label>
+      <input id="login-name" type="text" placeholder="Ex : Martin Jean"
+        class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
     </div>
-    <div id="pyodide-status" class="text-xs bg-blue-800 rounded-full px-3 py-1 flex items-center gap-2">
-      <span class="spin">⟳</span> Chargement Python…
-    </div>
-  </div>
-</header>
-
-<!-- ─── Main ────────────────────────────────────────────────────────────── -->
-<main class="max-w-4xl mx-auto px-4 py-8 space-y-6">
-
-  <!-- Infos étudiant -->
-  <section class="bg-white rounded-xl shadow p-6 space-y-4">
-    <h2 class="text-lg font-semibold text-gray-800">👤 Vos informations</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Nom et prénom *</label>
-        <input id="student-name" type="text" placeholder="Ex : Martin Jean"
-          class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Classe *</label>
-        <select id="class-id"
-          class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-          <option value="">— Sélectionnez —</option>
-          <option>1BTS SN</option>
-          <option>2BTS SN</option>
-          <option>Terminale STI2D</option>
-          <option>Bac Pro</option>
-          <option>UPE2A</option>
-          <option>Autre</option>
-        </select>
-      </div>
-    </div>
-  </section>
-
-  <!-- Choix de l'exercice -->
-  <section class="bg-white rounded-xl shadow p-6 space-y-4">
-    <h2 class="text-lg font-semibold text-gray-800">📋 Exercice</h2>
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Sujet *</label>
-      <select id="exercise-select"
+      <label class="block text-sm font-medium text-gray-700 mb-1">Classe</label>
+      <select id="login-class"
         class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        <option value="">— Chargement… —</option>
+        <option value="">— Sélectionnez —</option>
+        <option>1BTS SN</option>
+        <option>2BTS SN</option>
+        <option>Terminale STI2D</option>
+        <option>Bac Pro</option>
+        <option>UPE2A</option>
+        <option>Autre</option>
       </select>
     </div>
-    <div id="exercise-info" class="hidden bg-blue-50 rounded-lg p-4 space-y-2">
-      <p id="exercise-desc" class="text-sm text-gray-700 whitespace-pre-wrap"></p>
-      <p id="exercise-deadline" class="text-xs text-orange-600 font-medium"></p>
-      <p id="test-count" class="text-xs text-gray-500"></p>
+    <p id="login-error" class="text-red-500 text-xs hidden">Veuillez remplir tous les champs.</p>
+    <button id="login-btn"
+      class="w-full bg-blue-700 hover:bg-blue-800 text-white py-2 rounded-lg font-medium transition">
+      Accéder
+    </button>
+  </div>
+</div>
+
+<!-- ─── App principale ───────────────────────────────────────────────────── -->
+<div id="app" class="hidden">
+
+  <header class="bg-blue-700 text-white shadow">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold">🐍 Dépôt de programmes Python</h1>
+        <p class="text-blue-200 text-sm">Lycée Denis Diderot – Belfort</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div id="pyodide-status" class="text-xs bg-blue-800 rounded-full px-3 py-1 flex items-center gap-2">
+          <span class="spin">⟳</span> Chargement Python…
+        </div>
+        <div id="user-badge" class="text-xs bg-blue-600 rounded-full px-3 py-1"></div>
+        <button id="logout-btn" class="text-xs bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded-lg transition">
+          Changer
+        </button>
+      </div>
     </div>
-  </section>
+  </header>
 
-  <!-- Éditeur de code -->
-  <section class="bg-white rounded-xl shadow p-6 space-y-4">
-    <div class="flex items-center justify-between">
-      <h2 class="text-lg font-semibold text-gray-800">✏️ Votre programme</h2>
-      <button id="clear-btn" class="text-xs text-gray-400 hover:text-red-500 transition">
-        🗑 Effacer
-      </button>
+  <!-- Tabs -->
+  <div class="bg-white border-b sticky top-0 z-10">
+    <div class="max-w-4xl mx-auto px-4 flex">
+      <button class="tab-btn active px-6 py-4 text-sm" data-tab="submit">✏️ Déposer</button>
+      <button class="tab-btn px-6 py-4 text-sm text-gray-500" data-tab="history">📋 Mes soumissions</button>
     </div>
-    <div id="editor"></div>
+  </div>
 
-    <!-- Boutons action -->
-    <div class="flex flex-wrap gap-3 pt-2">
-      <button id="run-btn"
-        class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 disabled:opacity-50">
-        ▶ Exécuter
-      </button>
-      <button id="test-btn"
-        class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 disabled:opacity-50 hidden">
-        🧪 Lancer les tests
-      </button>
-      <button id="submit-btn"
-        class="bg-blue-700 hover:bg-blue-800 text-white px-5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 disabled:opacity-50">
-        📤 Soumettre
-      </button>
+  <main class="max-w-4xl mx-auto px-4 py-8 space-y-6">
+
+    <!-- ── Onglet Déposer ────────────────────────────────────────────────── -->
+    <div id="tab-submit">
+      <!-- Choix exercice -->
+      <section class="bg-white rounded-xl shadow p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-gray-800">📋 Exercice</h2>
+        <select id="exercise-select"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <option value="">— Chargement… —</option>
+        </select>
+        <div id="exercise-info" class="hidden bg-blue-50 rounded-lg p-4 space-y-1">
+          <p id="exercise-desc" class="text-sm text-gray-700 whitespace-pre-wrap"></p>
+          <p id="exercise-deadline" class="text-xs text-orange-600 font-medium"></p>
+          <p id="test-count" class="text-xs text-gray-500"></p>
+        </div>
+      </section>
+
+      <!-- Éditeur -->
+      <section class="bg-white rounded-xl shadow p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold text-gray-800">✏️ Votre programme</h2>
+          <button id="clear-btn" class="text-xs text-gray-400 hover:text-red-500 transition">🗑 Effacer</button>
+        </div>
+        <div id="editor"></div>
+        <div class="flex flex-wrap gap-3 pt-2">
+          <button id="run-btn"
+            class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50">
+            ▶ Exécuter
+          </button>
+          <button id="test-btn"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 hidden">
+            🧪 Lancer les tests
+          </button>
+          <button id="submit-btn"
+            class="bg-blue-700 hover:bg-blue-800 text-white px-5 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50">
+            📤 Soumettre
+          </button>
+        </div>
+      </section>
+
+      <!-- Output -->
+      <section id="output-section" class="bg-white rounded-xl shadow p-6 space-y-3 hidden">
+        <h2 class="text-lg font-semibold text-gray-800">🖥 Sortie du programme</h2>
+        <pre id="output-box" class="bg-gray-900 text-green-400 rounded-lg p-4 text-sm font-mono overflow-x-auto whitespace-pre-wrap max-h-64"></pre>
+      </section>
+
+      <!-- Tests -->
+      <section id="test-section" class="bg-white rounded-xl shadow p-6 space-y-3 hidden">
+        <h2 class="text-lg font-semibold text-gray-800">🧪 Résultats des tests</h2>
+        <div id="test-results" class="space-y-2"></div>
+        <div id="test-score" class="text-sm font-semibold mt-2"></div>
+      </section>
+
+      <div id="submit-msg" class="hidden"></div>
     </div>
-  </section>
 
-  <!-- Output -->
-  <section id="output-section" class="bg-white rounded-xl shadow p-6 space-y-3 hidden">
-    <h2 class="text-lg font-semibold text-gray-800">🖥 Sortie du programme</h2>
-    <pre id="output-box"
-      class="bg-gray-900 text-green-400 rounded-lg p-4 text-sm font-mono overflow-x-auto whitespace-pre-wrap max-h-64"></pre>
-  </section>
+    <!-- ── Onglet Historique ─────────────────────────────────────────────── -->
+    <div id="tab-history" class="hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold text-gray-800">📋 Mes soumissions</h2>
+        <button id="refresh-history-btn"
+          class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1 rounded-lg transition">
+          🔄 Actualiser
+        </button>
+      </div>
+      <div id="history-list" class="space-y-3">
+        <p class="text-center text-gray-400 py-8">Chargement…</p>
+      </div>
+    </div>
 
-  <!-- Résultats des tests -->
-  <section id="test-section" class="bg-white rounded-xl shadow p-6 space-y-3 hidden">
-    <h2 class="text-lg font-semibold text-gray-800">🧪 Résultats des tests</h2>
-    <div id="test-results" class="space-y-2"></div>
-    <div id="test-score" class="text-sm font-semibold mt-2"></div>
-  </section>
+  </main>
+</div>
 
-  <!-- Message soumission -->
-  <div id="submit-msg" class="hidden"></div>
-
-</main>
+<!-- ─── Modal : voir soumission élève ───────────────────────────────────── -->
+<dialog id="modal-sub">
+  <div class="bg-white rounded-2xl overflow-hidden">
+    <div class="bg-blue-700 text-white px-6 py-4 flex items-center justify-between">
+      <h2 class="font-bold text-lg" id="ms-title">Ma soumission</h2>
+      <button onclick="document.getElementById('modal-sub').close()"
+        class="hover:bg-blue-800 rounded-full w-8 h-8 flex items-center justify-center transition text-lg">✕</button>
+    </div>
+    <div class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div><span class="text-gray-500">Exercice :</span> <b id="ms-exercise"></b></div>
+        <div><span class="text-gray-500">Date :</span> <b id="ms-date"></b></div>
+        <div><span class="text-gray-500">Note :</span> <b id="ms-grade" class="text-blue-700"></b></div>
+      </div>
+      <div>
+        <h3 class="font-semibold text-gray-700 mb-2">Code soumis</h3>
+        <pre id="ms-code" class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono"></pre>
+      </div>
+      <div>
+        <h3 class="font-semibold text-gray-700 mb-2">Sortie</h3>
+        <pre id="ms-output" class="bg-gray-100 rounded-lg p-3 text-xs font-mono"></pre>
+      </div>
+      <div id="ms-tests-section" class="hidden">
+        <h3 class="font-semibold text-gray-700 mb-2">Tests</h3>
+        <div id="ms-tests" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+</dialog>
 
 <footer class="text-center text-xs text-gray-400 py-6">
   Lycée Denis Diderot – Belfort &nbsp;|&nbsp;
@@ -130,55 +194,86 @@
 </footer>
 
 <script>
-// ─── CONFIG ─────────────────────────────────────────────────────────────────
-const API_URL = "https://python-submit.onrender.com"; // ← REMPLACER après déploiement
+const API_URL = "https://python-submit.onrender.com";
 
-// ─── État global ─────────────────────────────────────────────────────────────
 let pyodide = null;
 let monacoEditor = null;
 let currentExercise = null;
 let lastOutput = "";
 let lastTestResults = [];
+let studentName = "";
+let studentClass = "";
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+function tryRestoreSession() {
+  const name = localStorage.getItem("student_name");
+  const cls  = localStorage.getItem("student_class");
+  if (name && cls) { startSession(name, cls); return true; }
+  return false;
+}
+
+function startSession(name, cls) {
+  studentName = name; studentClass = cls;
+  document.getElementById("login-screen").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("user-badge").textContent = `${name} – ${cls}`;
+  loadExercises();
+}
+
+document.getElementById("login-btn").addEventListener("click", () => {
+  const name = document.getElementById("login-name").value.trim();
+  const cls  = document.getElementById("login-class").value;
+  if (!name || !cls) { document.getElementById("login-error").classList.remove("hidden"); return; }
+  localStorage.setItem("student_name", name);
+  localStorage.setItem("student_class", cls);
+  startSession(name, cls);
+});
+
+document.getElementById("logout-btn").addEventListener("click", () => {
+  localStorage.removeItem("student_name");
+  localStorage.removeItem("student_class");
+  document.getElementById("login-screen").classList.remove("hidden");
+  document.getElementById("app").classList.add("hidden");
+});
+
+tryRestoreSession();
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-submit").classList.toggle("hidden", btn.dataset.tab !== "submit");
+    document.getElementById("tab-history").classList.toggle("hidden", btn.dataset.tab !== "history");
+    if (btn.dataset.tab === "history") loadHistory();
+  });
+});
 
 // ─── Monaco ──────────────────────────────────────────────────────────────────
 require.config({ paths: { vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs" }});
 require(["vs/editor/editor.main"], () => {
   monacoEditor = monaco.editor.create(document.getElementById("editor"), {
     value: `# Écrivez votre programme ici\nprint("Bonjour !")`,
-    language: "python",
-    theme: "vs-dark",
-    fontSize: 14,
-    minimap: { enabled: false },
-    scrollBeyondLastLine: false,
-    automaticLayout: true,
+    language: "python", theme: "vs-dark", fontSize: 14,
+    minimap: { enabled: false }, scrollBeyondLastLine: false, automaticLayout: true,
   });
 });
 
 // ─── Pyodide ─────────────────────────────────────────────────────────────────
 async function loadPyodideEnv() {
   try {
-    // Charger Pyodide dynamiquement après Monaco pour éviter les conflits
     await new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js";
-      script.onload = resolve;
-      script.onerror = reject;
-      document.head.appendChild(script);
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js";
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
     });
-    pyodide = await loadPyodide({
-      indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/"
-    });
-    const statusEl = document.getElementById("pyodide-status");
-    statusEl.innerHTML = "✅ Python prêt";
-    statusEl.classList.replace("bg-blue-800", "bg-green-700");
-    document.getElementById("run-btn").disabled = false;
-    document.getElementById("test-btn").disabled = false;
-    document.getElementById("submit-btn").disabled = false;
+    pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/" });
+    const st = document.getElementById("pyodide-status");
+    st.innerHTML = "✅ Python prêt";
+    st.classList.replace("bg-blue-800", "bg-green-700");
   } catch(e) {
-    const statusEl = document.getElementById("pyodide-status");
-    statusEl.innerHTML = "❌ Erreur Python";
-    statusEl.classList.replace("bg-blue-800", "bg-red-700");
-    console.error("Pyodide failed to load:", e);
+    document.getElementById("pyodide-status").innerHTML = "❌ Python indisponible";
   }
 }
 loadPyodideEnv();
@@ -196,9 +291,8 @@ async function loadExercises() {
       opt.textContent = ex.title + (ex.deadline ? ` (avant le ${formatDate(ex.deadline)})` : "");
       sel.appendChild(opt);
     });
-  } catch (e) {
-    document.getElementById("exercise-select").innerHTML =
-      '<option value="">⚠ Impossible de charger les exercices</option>';
+  } catch {
+    document.getElementById("exercise-select").innerHTML = '<option value="">⚠ Impossible de charger</option>';
   }
 }
 
@@ -209,120 +303,153 @@ document.getElementById("exercise-select").addEventListener("change", async (e) 
   try {
     const res = await fetch(`${API_URL}/exercises/${id}`);
     currentExercise = await res.json();
-    document.getElementById("exercise-desc").textContent =
-      currentExercise.description || "Aucune description.";
+    document.getElementById("exercise-desc").textContent = currentExercise.description || "Aucune description.";
     document.getElementById("exercise-deadline").textContent =
       currentExercise.deadline ? `⏰ Date limite : ${formatDate(currentExercise.deadline)}` : "";
     const tc = currentExercise.test_cases || [];
     document.getElementById("test-count").textContent =
-      tc.length > 0 ? `🧪 ${tc.length} test(s) automatique(s) disponible(s)` : "Pas de tests automatiques.";
+      tc.length > 0 ? `🧪 ${tc.length} test(s) automatique(s)` : "Pas de tests automatiques.";
     document.getElementById("test-btn").classList.toggle("hidden", tc.length === 0);
     infoEl.classList.remove("hidden");
-  } catch (e) {
-    console.error(e);
-  }
+  } catch(e) { console.error(e); }
 });
 
-loadExercises();
-
-// ─── Exécution simple ─────────────────────────────────────────────────────────
+// ─── Exécution ────────────────────────────────────────────────────────────────
 document.getElementById("run-btn").addEventListener("click", async () => {
   if (!pyodide) return alert("Python se charge encore, patientez…");
-  const code = monacoEditor.getValue();
-  const [output, err] = await runCode(code, []);
+  const [output, err] = await runCode(monacoEditor.getValue(), []);
   lastOutput = output + (err ? "\n--- ERREUR ---\n" + err : "");
   showOutput(lastOutput);
 });
 
-// ─── Tests automatiques ───────────────────────────────────────────────────────
+// ─── Tests ───────────────────────────────────────────────────────────────────
 document.getElementById("test-btn").addEventListener("click", async () => {
   if (!pyodide) return alert("Python se charge encore…");
   if (!currentExercise) return alert("Sélectionnez un exercice.");
-  const code = monacoEditor.getValue();
   const testCases = currentExercise.test_cases || [];
   lastTestResults = [];
   let passed = 0;
-
   const resultsEl = document.getElementById("test-results");
   resultsEl.innerHTML = "";
   document.getElementById("test-section").classList.remove("hidden");
-
   for (let i = 0; i < testCases.length; i++) {
     const tc = testCases[i];
-    const [output, err] = await runCode(code, tc.inputs || []);
+    const [output, err] = await runCode(monacoEditor.getValue(), tc.inputs || []);
     const actual = output.trim();
     const expected = (tc.expected_output || "").trim();
     const ok = actual === expected;
     if (ok) passed++;
-
     lastTestResults.push({ label: tc.label || `Test ${i+1}`, passed: ok, actual, expected, error: err });
-
     const div = document.createElement("div");
     div.className = `rounded-lg p-3 text-sm ${ok ? "badge-pass" : "badge-fail"}`;
-    div.innerHTML = `
-      <div class="font-semibold">${ok ? "✅" : "❌"} ${tc.label || "Test " + (i+1)}</div>
+    div.innerHTML = `<div class="font-semibold">${ok ? "✅" : "❌"} ${tc.label || "Test "+(i+1)}</div>
       ${err ? `<div class="mt-1 font-mono text-xs">Erreur : ${escHtml(err)}</div>` : ""}
-      ${!ok ? `
-        <div class="mt-1 font-mono text-xs">Attendu : <b>${escHtml(expected)}</b></div>
-        <div class="font-mono text-xs">Obtenu  : <b>${escHtml(actual)}</b></div>` : ""}
-    `;
+      ${!ok ? `<div class="mt-1 font-mono text-xs">Attendu : <b>${escHtml(expected)}</b></div>
+               <div class="font-mono text-xs">Obtenu  : <b>${escHtml(actual)}</b></div>` : ""}`;
     resultsEl.appendChild(div);
   }
-
-  document.getElementById("test-score").textContent =
-    `Score : ${passed} / ${testCases.length} test(s) réussi(s)`;
+  document.getElementById("test-score").textContent = `Score : ${passed} / ${testCases.length} test(s) réussi(s)`;
 });
 
 // ─── Soumission ───────────────────────────────────────────────────────────────
 document.getElementById("submit-btn").addEventListener("click", async () => {
-  const name = document.getElementById("student-name").value.trim();
-  const cls  = document.getElementById("class-id").value;
-  if (!name) return showError("Veuillez entrer votre nom.");
-  if (!cls)  return showError("Veuillez sélectionner votre classe.");
   if (!currentExercise) return showError("Veuillez sélectionner un exercice.");
-
   const code = monacoEditor.getValue().trim();
   if (!code) return showError("Votre programme est vide.");
-
   const btn = document.getElementById("submit-btn");
-  btn.textContent = "⏳ Envoi…";
-  btn.disabled = true;
-
+  btn.textContent = "⏳ Envoi…"; btn.disabled = true;
   try {
     const res = await fetch(`${API_URL}/submit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        student_name: name,
-        class_id: cls,
-        exercise_id: currentExercise.id,
-        code,
-        output: lastOutput,
-        test_results: lastTestResults,
+        student_name: studentName, class_id: studentClass,
+        exercise_id: currentExercise.id, code,
+        output: lastOutput, test_results: lastTestResults,
       }),
     });
     if (!res.ok) throw new Error(await res.text());
-    showSubmitMsg("✅ Programme déposé avec succès ! Votre professeur le recevra.", "green");
-  } catch (e) {
-    showSubmitMsg("❌ Erreur lors de l'envoi : " + e.message, "red");
+    showSubmitMsg("✅ Programme déposé avec succès !", "green");
+  } catch(e) {
+    showSubmitMsg("❌ Erreur : " + e.message, "red");
   } finally {
-    btn.textContent = "📤 Soumettre";
-    btn.disabled = false;
+    btn.textContent = "📤 Soumettre"; btn.disabled = false;
   }
 });
 
-// ─── Clear ────────────────────────────────────────────────────────────────────
 document.getElementById("clear-btn").addEventListener("click", () => {
   if (confirm("Effacer le code ?")) monacoEditor.setValue("");
 });
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Historique ───────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const listEl = document.getElementById("history-list");
+  listEl.innerHTML = '<p class="text-center text-gray-400 py-8">Chargement…</p>';
+  try {
+    const params = new URLSearchParams({ student_name: studentName, class_id: studentClass });
+    const res = await fetch(`${API_URL}/submissions/student?${params}`);
+    const subs = await res.json();
+    if (!subs.length) {
+      listEl.innerHTML = '<p class="text-center text-gray-400 py-8">Aucune soumission pour l\'instant.</p>';
+      return;
+    }
+    listEl.innerHTML = subs.map(s => {
+      const tr = s.test_results || [];
+      const passed = tr.filter(t => t.passed).length;
+      const testBadge = tr.length
+        ? `<span class="text-xs px-2 py-1 rounded-full ${passed===tr.length?"badge-pass":"badge-fail"}">${passed}/${tr.length} tests</span>`
+        : "";
+      const gradeBadge = s.grade !== null && s.grade !== undefined
+        ? `<span class="text-sm font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-full">${s.grade}/20</span>`
+        : `<span class="text-xs text-gray-400">Non noté</span>`;
+      return `
+        <div class="bg-white rounded-xl shadow p-5 flex items-start justify-between gap-4">
+          <div class="space-y-1">
+            <h3 class="font-semibold text-gray-800">${escHtml(s.exercise_title)}</h3>
+            <p class="text-xs text-gray-400">${formatDate(s.submitted_at)}</p>
+            <div class="flex gap-2 items-center mt-1">${testBadge} ${gradeBadge}</div>
+          </div>
+          <button onclick="viewMySubmission(${s.id})" data-sub='${JSON.stringify(s)}'
+            class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg transition shrink-0">
+            👁 Voir
+          </button>
+        </div>`;
+    }).join("");
+  } catch(e) {
+    listEl.innerHTML = `<p class="text-red-400 text-center">Erreur : ${e.message}</p>`;
+  }
+}
 
+document.getElementById("refresh-history-btn").addEventListener("click", loadHistory);
+
+function viewMySubmission(id) {
+  const btn = document.querySelector(`button[onclick="viewMySubmission(${id})"]`);
+  const s = JSON.parse(btn.dataset.sub);
+  document.getElementById("ms-title").textContent = `Soumission – ${s.exercise_title}`;
+  document.getElementById("ms-exercise").textContent = s.exercise_title;
+  document.getElementById("ms-date").textContent = formatDate(s.submitted_at);
+  document.getElementById("ms-grade").textContent =
+    s.grade !== null && s.grade !== undefined ? `${s.grade}/20` : "Pas encore notée";
+  document.getElementById("ms-code").textContent = s.code;
+  document.getElementById("ms-output").textContent = s.output || "(aucune sortie)";
+  const tests = s.test_results || [];
+  const testSec = document.getElementById("ms-tests-section");
+  if (tests.length) {
+    testSec.classList.remove("hidden");
+    document.getElementById("ms-tests").innerHTML = tests.map(t =>
+      `<div class="rounded-lg p-2 text-xs ${t.passed?"badge-pass":"badge-fail"}">
+        ${t.passed?"✅":"❌"} ${escHtml(t.label||"Test")}
+      </div>`
+    ).join("");
+  } else testSec.classList.add("hidden");
+  document.getElementById("modal-sub").showModal();
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 async function runCode(code, inputs) {
   const wrappedCode = `
 import sys, builtins
 from io import StringIO
-
 _inputs = ${JSON.stringify(inputs)}
 _idx = 0
 def _mock_input(prompt=""):
@@ -330,7 +457,6 @@ def _mock_input(prompt=""):
     if _idx < len(_inputs):
         v = _inputs[_idx]; _idx += 1; return v
     return ""
-
 builtins.input = _mock_input
 sys.stdout = StringIO()
 _err = ""
@@ -344,37 +470,28 @@ sys.stdout = sys.__stdout__
 `;
   try {
     const result = await pyodide.runPythonAsync(wrappedCode);
-    return [result.get(0) || "", result.get(1) || ""];
-  } catch (e) {
-    return ["", String(e)];
-  }
+    return [result.get(0)||"", result.get(1)||""];
+  } catch(e) { return ["", String(e)]; }
 }
 
 function showOutput(text) {
-  const sec = document.getElementById("output-section");
   document.getElementById("output-box").textContent = text || "(aucune sortie)";
-  sec.classList.remove("hidden");
+  document.getElementById("output-section").classList.remove("hidden");
 }
 
 function showSubmitMsg(msg, color) {
   const el = document.getElementById("submit-msg");
   el.className = `rounded-xl p-4 text-sm font-medium bg-${color}-50 text-${color}-800 border border-${color}-200`;
-  el.textContent = msg;
-  el.classList.remove("hidden");
+  el.textContent = msg; el.classList.remove("hidden");
   el.scrollIntoView({ behavior: "smooth" });
 }
-
-function showError(msg) {
-  showSubmitMsg("⚠ " + msg, "orange");
-}
-
+function showError(msg) { showSubmitMsg("⚠ " + msg, "orange"); }
 function formatDate(iso) {
   if (!iso) return "";
-  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  return new Date(iso).toLocaleString("fr-FR", { day:"numeric", month:"long", year:"numeric", hour:"2-digit", minute:"2-digit" });
 }
-
 function escHtml(s) {
-  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 </script>
 </body>
