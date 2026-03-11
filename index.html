@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dépôt Python – Lycée Denis Diderot</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
-  <script>window._loadPyodide = loadPyodide;</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
   
   <style>
@@ -158,13 +156,30 @@ require(["vs/editor/editor.main"], () => {
 
 // ─── Pyodide ─────────────────────────────────────────────────────────────────
 async function loadPyodideEnv() {
-  pyodide = await window._loadPyodide();
-  const statusEl = document.getElementById("pyodide-status");
-  statusEl.innerHTML = "✅ Python prêt";
-  statusEl.classList.replace("bg-blue-800", "bg-green-700");
-  document.getElementById("run-btn").disabled = false;
-  document.getElementById("test-btn").disabled = false;
-  document.getElementById("submit-btn").disabled = false;
+  try {
+    // Charger Pyodide dynamiquement après Monaco pour éviter les conflits
+    await new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js";
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    pyodide = await loadPyodide({
+      indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/"
+    });
+    const statusEl = document.getElementById("pyodide-status");
+    statusEl.innerHTML = "✅ Python prêt";
+    statusEl.classList.replace("bg-blue-800", "bg-green-700");
+    document.getElementById("run-btn").disabled = false;
+    document.getElementById("test-btn").disabled = false;
+    document.getElementById("submit-btn").disabled = false;
+  } catch(e) {
+    const statusEl = document.getElementById("pyodide-status");
+    statusEl.innerHTML = "❌ Erreur Python";
+    statusEl.classList.replace("bg-blue-800", "bg-red-700");
+    console.error("Pyodide failed to load:", e);
+  }
 }
 loadPyodideEnv();
 
