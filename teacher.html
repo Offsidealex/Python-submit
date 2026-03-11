@@ -328,11 +328,7 @@ async function loadSubmissions() {
           <td class="px-4 py-3 text-gray-500">${esc(s.class_id)}</td>
           <td class="px-4 py-3">${esc(s.exercise_title)}</td>
           <td class="px-4 py-3">${badge}</td>
-          <td class="px-4 py-3">
-            ${s.grade !== null && s.grade !== undefined
-              ? `<span class="text-sm font-bold text-blue-700">${s.grade}/20</span>`
-              : '<span class="text-xs text-gray-300">—</span>'}
-          </td>
+          <td class="px-4 py-3">${gradeCell(s.grade)}</td>
           <td class="px-4 py-3 text-gray-400 text-xs">${formatDate(s.submitted_at)}</td>
           <td class="px-4 py-3 flex gap-2">
             <button onclick="viewSubmission(${s.id})" data-sub='${JSON.stringify(s)}'
@@ -552,18 +548,28 @@ function esc(s) {
 }
 
 // ─── Note ────────────────────────────────────────────────────────────────────
+function gradeCell(grade) {
+  if (grade !== null && grade !== undefined)
+    return '<span class="text-sm font-bold text-blue-700">' + grade + '/20</span>';
+  return '<span class="text-xs text-gray-300">—</span>';
+}
+
 document.getElementById('m-save-grade-btn').addEventListener('click', async () => {
   const id = document.getElementById('m-save-grade-btn').dataset.subId;
   const val = document.getElementById('m-grade-input').value;
   const grade = val === '' ? null : parseFloat(val);
-  await fetch(`${API_URL}/submissions/${id}/grade`, {
+  const res = await fetch(`${API_URL}/submissions/${id}/grade`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', 'x-teacher-password': teacherPassword },
     body: JSON.stringify({ grade })
   });
-  document.getElementById('m-grade-saved').classList.remove('hidden');
-  setTimeout(() => document.getElementById('m-grade-saved').classList.add('hidden'), 2000);
-  loadSubmissions(); // Rafraîchir le tableau
+  if (res.ok) {
+    document.getElementById('m-grade-saved').classList.remove('hidden');
+    setTimeout(() => document.getElementById('m-grade-saved').classList.add('hidden'), 2000);
+    await loadSubmissions();
+  } else {
+    alert('Erreur lors de la sauvegarde de la note.');
+  }
 });
 
 // ─── Pyodide ──────────────────────────────────────────────────────────────────
