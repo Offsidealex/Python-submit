@@ -6,6 +6,8 @@ import psycopg2
 import psycopg2.extras
 import json
 import os
+import random
+import string
 
 app = FastAPI(title="Python Submit API")
 
@@ -35,6 +37,14 @@ def init_db():
             description TEXT DEFAULT '',
             deadline TEXT,
             test_cases TEXT DEFAULT '[]',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS class_codes (
+            id SERIAL PRIMARY KEY,
+            code TEXT UNIQUE NOT NULL,
+            class_name TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -91,6 +101,9 @@ class SubmissionCreate(BaseModel):
 
 class GradeUpdate(BaseModel):
     grade: Optional[float] = None
+
+class ClassCodeCreate(BaseModel):
+    class_name: str
 
 
 @app.get("/exercises")
@@ -245,6 +258,61 @@ def delete_submission(submission_id: int, auth=Depends(check_teacher)):
     cur.execute("DELETE FROM submissions WHERE id=%s", (submission_id,))
     conn.commit(); cur.close(); conn.close()
     return {"message": "Soumission supprimée"}
+
+
+def _generate_code():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+
+@app.get("/class-codes/verify")
+def verify_class_code(code: str = Query(...)):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM class_codes WHERE code=%s", (code.upper(),))
+    row = cur.fetchone()
+    cur.close(); conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Code invalide")
+    return dict(row)
+
+
+@app.get("/class-codes")
+def list_class_codes(auth=Depends(check_teacher)):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM class_codes ORDER BY created_at DESC")
+    rows = cur.fetchall()
+    cur.close(); conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.post("/class-codes", status_code=201)
+def create_class_code(body: ClassCodeCreate, auth=Depends(check_teacher)):
+    conn = get_db()
+    cur = conn.cursor()
+    for _ in range(10):
+        code = _generate_code()
+        try:
+            cur.execute(
+                "INSERT INTO class_codes (code, class_name) VALUES (%s, %s) RETURNING id",
+                (code, body.class_name)
+            )
+            new_id = cur.fetchone()[0]
+            conn.commit(); cur.close(); conn.close()
+            return {"id": new_id, "code": code, "class_name": body.class_name}
+        except Exception:
+            conn.rollback()
+    cur.close(); conn.close()
+    raise HTTPException(status_code=500, detail="Impossible de générer un code unique")
+
+
+@app.delete("/class-codes/{code_id}")
+def delete_class_code(code_id: int, auth=Depends(check_teacher)):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM class_codes WHERE id=%s", (code_id,))
+    conn.commit(); cur.close(); conn.close()
+    return {"message": "Code supprimé"}
 
 
 @app.get("/stats")
