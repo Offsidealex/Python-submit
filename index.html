@@ -320,8 +320,14 @@ document.getElementById("exercise-select").addEventListener("change", async (e) 
   const infoEl = document.getElementById("exercise-info");
   if (!id) { infoEl.classList.add("hidden"); currentExercise = null; return; }
   try {
-    const res = await fetch(`${API_URL}/exercises/${id}`);
-    currentExercise = await res.json();
+    const [exRes, subsRes] = await Promise.all([
+      fetch(`${API_URL}/exercises/${id}`),
+      fetch(`${API_URL}/submissions/student?student_name=${encodeURIComponent(studentName)}&class_id=${encodeURIComponent(studentClass)}`)
+    ]);
+    currentExercise = await exRes.json();
+    const subs = await subsRes.json();
+    const alreadySubmitted = subs.some(s => s.exercise_id === parseInt(id));
+
     document.getElementById("exercise-desc").textContent = currentExercise.description || "Aucune description.";
     document.getElementById("exercise-deadline").textContent =
       currentExercise.deadline ? `⏰ Date limite : ${formatDate(currentExercise.deadline)}` : "";
@@ -330,6 +336,19 @@ document.getElementById("exercise-select").addEventListener("change", async (e) 
       tc.length > 0 ? `🧪 ${tc.length} test(s) automatique(s)` : "Pas de tests automatiques.";
     document.getElementById("test-btn").classList.toggle("hidden", tc.length === 0);
     infoEl.classList.remove("hidden");
+
+    const submitBtn = document.getElementById("submit-btn");
+    if (alreadySubmitted) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "✅ Déjà soumis";
+      submitBtn.classList.replace("bg-blue-700", "bg-gray-400");
+      submitBtn.classList.replace("hover:bg-blue-800", "hover:bg-gray-400");
+    } else {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "📤 Soumettre";
+      submitBtn.classList.replace("bg-gray-400", "bg-blue-700");
+      submitBtn.classList.replace("hover:bg-gray-400", "hover:bg-blue-800");
+    }
   } catch(e) { console.error(e); }
 });
 
