@@ -173,7 +173,7 @@ class ClassCodeCreate(BaseModel):
 def list_exercises():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT id, title, description, deadline, created_at FROM exercises ORDER BY id DESC")
+    cur.execute("SELECT id, title, description, deadline, created_at FROM exercises ORDER BY id ASC")
     rows = cur.fetchall()
     cur.close(); conn.close()
     return [dict(r) for r in rows]
