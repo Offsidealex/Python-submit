@@ -183,16 +183,21 @@
         <h3 class="font-semibold text-gray-700 mb-2">Sortie produite</h3>
         <pre id="m-output" class="bg-gray-100 rounded-lg p-3 text-xs font-mono"></pre>
       </div>
-      <div class="flex items-center gap-4 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+      <div class="flex flex-wrap items-center gap-3 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
         <label class="text-sm font-semibold text-gray-700 shrink-0">📝 Note (/2) :</label>
         <input id="m-grade-input" type="number" min="0" max="2" step="0.5"
-          class="w-24 border rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-yellow-400 focus:outline-none"
-          placeholder="ex: 14" />
+          class="w-20 border rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-yellow-400 focus:outline-none"
+          placeholder="0-2" />
         <button id="m-save-grade-btn"
           class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-4 py-1 rounded-lg text-sm font-medium transition">
           💾 Enregistrer
         </button>
+        <button id="m-auto-grade-btn"
+          class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1 rounded-lg text-sm font-medium transition">
+          🤖 Noter avec l'IA
+        </button>
         <span id="m-grade-saved" class="text-xs text-green-600 hidden">✅ Enregistré</span>
+        <span id="m-auto-grade-saved" class="text-xs text-purple-600 hidden"></span>
       </div>
       <div>
         <div class="flex items-center gap-3 mb-2">
@@ -655,6 +660,30 @@ function gradeCell(grade) {
     return '<span class="text-sm font-bold text-blue-700">' + grade + '/2</span>';
   return '<span class="text-xs text-gray-300">—</span>';
 }
+
+document.getElementById('m-auto-grade-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('m-auto-grade-btn');
+  const msgEl = document.getElementById('m-auto-grade-saved');
+  btn.textContent = '⏳ Correction…'; btn.disabled = true;
+  msgEl.classList.add('hidden');
+  try {
+    const res = await fetch(`${API_URL}/submissions/${currentSubmissionId}/auto-grade`, {
+      method: 'POST',
+      headers: { 'x-teacher-password': teacherPassword }
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    document.getElementById('m-grade-input').value = data.note;
+    msgEl.textContent = `✅ Note IA : ${data.note}/2 — ${data.commentaire}`;
+    msgEl.classList.remove('hidden');
+    await loadSubmissions();
+  } catch(e) {
+    msgEl.textContent = '❌ Erreur : ' + e.message;
+    msgEl.classList.remove('hidden');
+  } finally {
+    btn.textContent = '🤖 Noter avec l\'IA'; btn.disabled = false;
+  }
+});
 
 document.getElementById('m-save-grade-btn').addEventListener('click', async () => {
   const id = currentSubmissionId;

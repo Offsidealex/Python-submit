@@ -8,6 +8,7 @@ import json
 import os
 import random
 import string
+import anthropic
 
 app = FastAPI(title="Python Submit API")
 
@@ -330,6 +331,70 @@ def delete_submission(submission_id: int, auth=Depends(check_teacher)):
     cur.execute("DELETE FROM submissions WHERE id=%s", (submission_id,))
     conn.commit(); cur.close(); conn.close()
     return {"message": "Soumission supprimée"}
+
+
+@app.post("/submissions/{submission_id}/auto-grade")
+def auto_grade(submission_id: int, auth=Depends(check_teacher)):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT s.code, s.output, e.title, e.description
+        FROM submissions s
+        JOIN exercises e ON s.exercise_id = e.id
+        WHERE s.id = %s
+    """, (submission_id,))
+    row = cur.fetchone()
+    if not row:
+        cur.close(); conn.close()
+        raise HTTPException(status_code=404, detail="Soumission introuvable")
+
+    prompt = f"""Tu es un professeur de Python au lycée. Évalue ce code d'élève et attribue une note sur 2 points.
+
+Exercice : {row['title']}
+Énoncé : {row['description']}
+
+Code de l'élève :
+```python
+{row['code']}
+```
+
+Sortie produite par le programme :
+{row['output'] or '(aucune sortie)'}
+
+Réponds UNIQUEMENT en JSON avec ce format exact :
+{{"note": 0.0, "commentaire": "..."}}
+
+- note : valeur parmi 0, 0.5, 1, 1.5 ou 2
+- commentaire : 1 ou 2 phrases maximum, en français, bienveillant et précis
+"""
+
+    try:
+        client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        import re
+        text = message.content[0].text.strip()
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if not match:
+            raise ValueError("Réponse JSON invalide")
+        data = json.loads(match.group())
+        note = float(data["note"])
+        note = max(0, min(2, note))
+        commentaire = str(data.get("commentaire", ""))
+
+        cur2 = conn.cursor()
+        cur2.execute("UPDATE submissions SET grade=%s WHERE id=%s", (note, submission_id))
+        conn.commit()
+        cur2.close()
+    except Exception as e:
+        cur.close(); conn.close()
+        raise HTTPException(status_code=500, detail=f"Erreur IA : {str(e)}")
+
+    cur.close(); conn.close()
+    return {"note": note, "commentaire": commentaire}
 
 
 def _generate_code():
