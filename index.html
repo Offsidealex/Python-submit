@@ -322,6 +322,13 @@ document.getElementById("exercise-select").addEventListener("change", async (e) 
   const id = e.target.value;
   const infoEl = document.getElementById("exercise-info");
   if (!id) { infoEl.classList.add("hidden"); currentExercise = null; return; }
+  // Réinitialiser l'éditeur et les sections
+  if (monacoEditor) monacoEditor.setValue(`# ${studentName}\n# Écrivez votre programme ici\n`);
+  lastOutput = ""; lastTestResults = [];
+  document.getElementById("output-section").classList.add("hidden");
+  document.getElementById("test-section").classList.add("hidden");
+  document.getElementById("submit-msg").classList.add("hidden");
+
   try {
     const [exRes, subsRes] = await Promise.all([
       fetch(`${API_URL}/exercises/${id}`),
