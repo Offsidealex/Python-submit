@@ -236,10 +236,22 @@ def submit(sub: SubmissionCreate):
     if not cur.fetchone():
         cur.close(); conn.close()
         raise HTTPException(status_code=404, detail="Exercice introuvable")
+    # Une seule soumission par élève par exercice : on remplace si elle existe
     cur.execute(
-        "INSERT INTO submissions (student_name, class_id, exercise_id, code, output, test_results) VALUES (%s,%s,%s,%s,%s,%s)",
-        (sub.student_name, sub.class_id, sub.exercise_id, sub.code, sub.output, json.dumps(sub.test_results))
+        "SELECT id FROM submissions WHERE student_name=%s AND class_id=%s AND exercise_id=%s",
+        (sub.student_name, sub.class_id, sub.exercise_id)
     )
+    existing = cur.fetchone()
+    if existing:
+        cur.execute(
+            "UPDATE submissions SET code=%s, output=%s, test_results=%s, grade=NULL, submitted_at=CURRENT_TIMESTAMP WHERE id=%s",
+            (sub.code, sub.output, json.dumps(sub.test_results), existing[0])
+        )
+    else:
+        cur.execute(
+            "INSERT INTO submissions (student_name, class_id, exercise_id, code, output, test_results) VALUES (%s,%s,%s,%s,%s,%s)",
+            (sub.student_name, sub.class_id, sub.exercise_id, sub.code, sub.output, json.dumps(sub.test_results))
+        )
     conn.commit(); cur.close(); conn.close()
     return {"message": "Soumission enregistrée"}
 

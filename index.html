@@ -209,6 +209,12 @@ function startSession(name, cls) {
   document.getElementById("login-screen").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
   document.getElementById("user-badge").textContent = `${name} – ${cls}`;
+  const editorValue = `# ${name}\n# Écrivez votre programme ici\n`;
+  if (monacoEditor) {
+    monacoEditor.setValue(editorValue);
+  } else {
+    window._pendingEditorValue = editorValue;
+  }
   loadExercises();
 }
 
@@ -263,8 +269,10 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
 // ─── Monaco ──────────────────────────────────────────────────────────────────
 require.config({ paths: { vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs" }});
 require(["vs/editor/editor.main"], () => {
+  const initValue = window._pendingEditorValue || `# Écrivez votre programme ici`;
+  window._pendingEditorValue = null;
   monacoEditor = monaco.editor.create(document.getElementById("editor"), {
-    value: `# Écrivez votre programme ici\nprint("Bonjour !")`,
+    value: initValue,
     language: "python", theme: "vs-dark", fontSize: 14,
     minimap: { enabled: false }, scrollBeyondLastLine: false, automaticLayout: true,
   });
