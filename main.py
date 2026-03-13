@@ -71,7 +71,70 @@ def init_db():
     conn.close()
 
 
+def seed_exercises():
+    exercises = [
+        {
+            "title": "TP3 - Q1",
+            "description": (
+                "Un capital de 20 000 € est placé à un taux annuel de 6 %.\n"
+                "Avec une boucle for, afficher le capital à la fin de chacune des 20 premières années.\n\n"
+                "Exemple de sortie attendue :\n"
+                "Année 1 : 21200.0 €\n"
+                "Année 2 : 22472.0 €\n"
+                "..."
+            ),
+        },
+        {
+            "title": "TP3 - Q2",
+            "description": (
+                "Avec une boucle while, diviser U = 100 V par 2 à chaque tour jusqu'à ce que U < 1 V.\n"
+                "Afficher le nombre d'itérations nécessaires."
+            ),
+        },
+        {
+            "title": "TP3 - Q3",
+            "description": (
+                "Avec une boucle for, calculer la somme 1 + 2 + 3 + ... + 200.\n"
+                "Vérifier le résultat avec la formule n*(n+1)//2 et afficher les deux valeurs."
+            ),
+        },
+        {
+            "title": "TP3 - Q4",
+            "description": (
+                "Programme de devinette : l'ordinateur choisit un nombre aléatoire entre 1 et 100 "
+                "(utiliser random.randint).\n"
+                "L'utilisateur propose des nombres jusqu'à trouver le bon.\n"
+                "Afficher le nombre de tentatives à la fin."
+            ),
+        },
+        {
+            "title": "TP3 - Q5",
+            "description": (
+                "Afficher une table de multiplication de 1 à 5 avec deux boucles for imbriquées.\n"
+                "Aligner les colonnes avec le format :>4d.\n\n"
+                "Exemple de sortie :\n"
+                "   1   2   3   4   5\n"
+                "   2   4   6   8  10\n"
+                "..."
+            ),
+        },
+    ]
+    conn = get_db()
+    cur = conn.cursor()
+    for ex in exercises:
+        cur.execute("SELECT id FROM exercises WHERE title = %s", (ex["title"],))
+        if not cur.fetchone():
+            cur.execute(
+                "INSERT INTO exercises (title, description, test_cases) VALUES (%s, %s, %s)",
+                (ex["title"], ex["description"], "[]")
+            )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
 init_db()
+seed_exercises()
 
 
 def check_teacher(x_teacher_password: Optional[str] = Header(None)):
