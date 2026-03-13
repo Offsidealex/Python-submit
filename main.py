@@ -62,9 +62,13 @@ def init_db():
             submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    # Ajouter colonne grade si elle n'existe pas (migration)
+    # Migrations
     try:
         cur.execute("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS grade NUMERIC")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_comment TEXT DEFAULT ''")
     except Exception:
         pass
     conn.commit()
@@ -246,10 +250,16 @@ def submit(sub: SubmissionCreate):
         cur.close(); conn.close()
         raise HTTPException(status_code=409, detail="Exercice déjà soumis")
     cur.execute(
-            "INSERT INTO submissions (student_name, class_id, exercise_id, code, output, test_results) VALUES (%s,%s,%s,%s,%s,%s)",
+            "INSERT INTO submissions (student_name, class_id, exercise_id, code, output, test_results) VALUES (%s,%s,%s,%s,%s,%s) RETURNING id",
             (sub.student_name, sub.class_id, sub.exercise_id, sub.code, sub.output, json.dumps(sub.test_results))
         )
+    new_id = cur.fetchone()[0]
     conn.commit(); cur.close(); conn.close()
+    # Correction automatique par l'IA
+    try:
+        _run_auto_grade(new_id)
+    except Exception:
+        pass  # On ne bloque pas la soumission si l'IA échoue
     return {"message": "Soumission enregistrée"}
 
 
@@ -298,7 +308,7 @@ def list_student_submissions(
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
         SELECT s.id, s.exercise_id, s.code, s.output, s.test_results,
-               s.grade, s.submitted_at, e.title AS exercise_title
+               s.grade, s.ai_comment, s.submitted_at, e.title AS exercise_title
         FROM submissions s
         JOIN exercises e ON s.exercise_id = e.id
         WHERE s.student_name ILIKE %s AND s.class_id = %s
@@ -333,8 +343,9 @@ def delete_submission(submission_id: int, auth=Depends(check_teacher)):
     return {"message": "Soumission supprimée"}
 
 
-@app.post("/submissions/{submission_id}/auto-grade")
-def auto_grade(submission_id: int, auth=Depends(check_teacher)):
+def _run_auto_grade(submission_id: int):
+    """Appelle Claude pour noter une soumission. Retourne (note, commentaire) ou lève une exception."""
+    import re
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
@@ -346,9 +357,9 @@ def auto_grade(submission_id: int, auth=Depends(check_teacher)):
     row = cur.fetchone()
     if not row:
         cur.close(); conn.close()
-        raise HTTPException(status_code=404, detail="Soumission introuvable")
+        raise ValueError("Soumission introuvable")
 
-    prompt = f"""Tu es un professeur de Python au lycée. Évalue ce code d'élève et attribue une note sur 2 points.
+    prompt = f"""Tu es un professeur de Python bienveillant au lycée. Évalue ce code d'élève.
 
 Exercice : {row['title']}
 Énoncé : {row['description']}
@@ -365,35 +376,42 @@ Réponds UNIQUEMENT en JSON avec ce format exact :
 {{"note": 0.0, "commentaire": "..."}}
 
 - note : valeur parmi 0, 0.5, 1, 1.5 ou 2
-- commentaire : 1 ou 2 phrases maximum, en français, bienveillant et précis
+- commentaire : 2 à 3 phrases en français. Mentionne ce qui est réussi, ce qui manque ou est incorrect, et un conseil si la note n'est pas maximale.
 """
 
+    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=300,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    text = message.content[0].text.strip()
+    match = re.search(r'\{.*\}', text, re.DOTALL)
+    if not match:
+        raise ValueError("Réponse JSON invalide")
+    data = json.loads(match.group())
+    note = float(data["note"])
+    note = max(0, min(2, note))
+    commentaire = str(data.get("commentaire", ""))
+
+    cur2 = conn.cursor()
+    cur2.execute(
+        "UPDATE submissions SET grade=%s, ai_comment=%s WHERE id=%s",
+        (note, commentaire, submission_id)
+    )
+    conn.commit()
+    cur2.close()
+    cur.close()
+    conn.close()
+    return note, commentaire
+
+
+@app.post("/submissions/{submission_id}/auto-grade")
+def auto_grade(submission_id: int, auth=Depends(check_teacher)):
     try:
-        client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=200,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        import re
-        text = message.content[0].text.strip()
-        match = re.search(r'\{.*\}', text, re.DOTALL)
-        if not match:
-            raise ValueError("Réponse JSON invalide")
-        data = json.loads(match.group())
-        note = float(data["note"])
-        note = max(0, min(2, note))
-        commentaire = str(data.get("commentaire", ""))
-
-        cur2 = conn.cursor()
-        cur2.execute("UPDATE submissions SET grade=%s WHERE id=%s", (note, submission_id))
-        conn.commit()
-        cur2.close()
+        note, commentaire = _run_auto_grade(submission_id)
     except Exception as e:
-        cur.close(); conn.close()
         raise HTTPException(status_code=500, detail=f"Erreur IA : {str(e)}")
-
-    cur.close(); conn.close()
     return {"note": note, "commentaire": commentaire}
 
 

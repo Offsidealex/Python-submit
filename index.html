@@ -167,6 +167,10 @@
         <div><span class="text-gray-500">Date :</span> <b id="ms-date"></b></div>
         <div><span class="text-gray-500">Note :</span> <b id="ms-grade" class="text-blue-700"></b></div>
       </div>
+      <div id="ms-ai-box" class="hidden bg-purple-50 border border-purple-200 rounded-xl p-4">
+        <p class="text-xs font-semibold text-purple-700 mb-1">🤖 Correction IA</p>
+        <p id="ms-ai-comment" class="text-sm text-purple-900"></p>
+      </div>
       <div>
         <h3 class="font-semibold text-gray-700 mb-2">Code soumis</h3>
         <pre id="ms-code" class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono"></pre>
@@ -493,13 +497,18 @@ async function loadHistory() {
         : "";
       const gradeBadge = s.grade !== null && s.grade !== undefined
         ? `<span class="text-sm font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-full">${s.grade}/2</span>`
-        : `<span class="text-xs text-gray-400">Non noté</span>`;
+        : `<span class="text-xs text-gray-400">En attente de correction…</span>`;
+      const aiComment = s.ai_comment
+        ? `<div class="mt-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2 text-xs text-purple-800">
+             🤖 <b>Correction IA :</b> ${escHtml(s.ai_comment)}
+           </div>` : "";
       return `
         <div class="bg-white rounded-xl shadow p-5 flex items-start justify-between gap-4">
-          <div class="space-y-1">
+          <div class="space-y-1 flex-1">
             <h3 class="font-semibold text-gray-800">${escHtml(s.exercise_title)}</h3>
             <p class="text-xs text-gray-400">${formatDate(s.submitted_at)}</p>
             <div class="flex gap-2 items-center mt-1">${testBadge} ${gradeBadge}</div>
+            ${aiComment}
           </div>
           <button onclick="viewMySubmission(${s.id})" data-sub='${JSON.stringify(s).replace(/'/g, "&#39;")}'
             class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg transition shrink-0">
@@ -521,7 +530,14 @@ function viewMySubmission(id) {
   document.getElementById("ms-exercise").textContent = s.exercise_title;
   document.getElementById("ms-date").textContent = formatDate(s.submitted_at);
   document.getElementById("ms-grade").textContent =
-    s.grade !== null && s.grade !== undefined ? `${s.grade}/2` : "Pas encore notée";
+    s.grade !== null && s.grade !== undefined ? `${s.grade}/2` : "En attente de correction…";
+  const aiBox = document.getElementById("ms-ai-comment");
+  if (s.ai_comment) {
+    aiBox.textContent = s.ai_comment;
+    document.getElementById("ms-ai-box").classList.remove("hidden");
+  } else {
+    document.getElementById("ms-ai-box").classList.add("hidden");
+  }
   document.getElementById("ms-code").textContent = s.code;
   document.getElementById("ms-output").textContent = s.output || "(aucune sortie)";
   const tests = s.test_results || [];
