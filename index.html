@@ -404,14 +404,55 @@ async function loadHistory() {
       listEl.innerHTML = '<p class="text-center text-gray-400 py-8">Aucune soumission pour l\'instant.</p>';
       return;
     }
-    listEl.innerHTML = subs.map(s => {
+
+    // ── Calcul total TP3 ──────────────────────────────────────────────────
+    const tp3Latest = {};
+    subs.forEach(s => {
+      if (s.exercise_title && s.exercise_title.startsWith('TP3 - Q') && !tp3Latest[s.exercise_title])
+        tp3Latest[s.exercise_title] = s;
+    });
+    const tp3Exercises = Object.values(tp3Latest);
+    const tp3Graded = tp3Exercises.filter(s => s.grade !== null && s.grade !== undefined);
+    const tp3Total = tp3Graded.reduce((sum, s) => sum + parseFloat(s.grade), 0);
+    const allSubmitted = tp3Exercises.length === 5;
+    const allGraded = tp3Graded.length === 5;
+
+    let tp3Card = "";
+    if (allSubmitted) {
+      if (allGraded) {
+        const totalRounded = Math.round(tp3Total * 10) / 10;
+        tp3Card = `
+          <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl shadow-lg p-5 flex items-center justify-between">
+            <div>
+              <p class="text-blue-200 text-xs font-medium uppercase tracking-wide">Note finale</p>
+              <p class="text-lg font-bold mt-1">TP3 – Boucles <span class="font-mono">for</span> et <span class="font-mono">while</span></p>
+              <p class="text-blue-200 text-xs mt-1">5 exercices notés</p>
+            </div>
+            <div class="text-right">
+              <p class="text-4xl font-bold">${totalRounded}</p>
+              <p class="text-blue-200 text-sm">/10</p>
+            </div>
+          </div>`;
+      } else {
+        tp3Card = `
+          <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center gap-3">
+            <span class="text-2xl">⏳</span>
+            <div>
+              <p class="font-semibold text-yellow-800">TP3 – en attente de correction</p>
+              <p class="text-xs text-yellow-600">${tp3Graded.length}/5 exercice(s) noté(s) — revenez quand tous seront corrigés.</p>
+            </div>
+          </div>`;
+      }
+    }
+
+    listEl.innerHTML = tp3Card + subs.map(s => {
       const tr = s.test_results || [];
       const passed = tr.filter(t => t.passed).length;
       const testBadge = tr.length
         ? `<span class="text-xs px-2 py-1 rounded-full ${passed===tr.length?"badge-pass":"badge-fail"}">${passed}/${tr.length} tests</span>`
         : "";
       const gradeBadge = s.grade !== null && s.grade !== undefined
-        ? `<span class="text-sm font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-full">${s.grade}/20</span>`
+        ? `<span class="text-sm font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-full">${s.grade}/2</span>`
         : `<span class="text-xs text-gray-400">Non noté</span>`;
       return `
         <div class="bg-white rounded-xl shadow p-5 flex items-start justify-between gap-4">
@@ -420,7 +461,7 @@ async function loadHistory() {
             <p class="text-xs text-gray-400">${formatDate(s.submitted_at)}</p>
             <div class="flex gap-2 items-center mt-1">${testBadge} ${gradeBadge}</div>
           </div>
-          <button onclick="viewMySubmission(${s.id})" data-sub='${JSON.stringify(s)}'
+          <button onclick="viewMySubmission(${s.id})" data-sub='${JSON.stringify(s).replace(/'/g, "&#39;")}'
             class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg transition shrink-0">
             👁 Voir
           </button>
@@ -440,7 +481,7 @@ function viewMySubmission(id) {
   document.getElementById("ms-exercise").textContent = s.exercise_title;
   document.getElementById("ms-date").textContent = formatDate(s.submitted_at);
   document.getElementById("ms-grade").textContent =
-    s.grade !== null && s.grade !== undefined ? `${s.grade}/20` : "Pas encore notée";
+    s.grade !== null && s.grade !== undefined ? `${s.grade}/2` : "Pas encore notée";
   document.getElementById("ms-code").textContent = s.code;
   document.getElementById("ms-output").textContent = s.output || "(aucune sortie)";
   const tests = s.test_results || [];
