@@ -114,6 +114,9 @@
             class="bg-blue-700 hover:bg-blue-800 text-white px-5 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50">
             📤 Soumettre
           </button>
+          <span id="already-submitted-msg" class="hidden text-red-600 text-sm font-medium">
+            Programme déjà soumis, passez à un autre exercice.
+          </span>
         </div>
       </section>
 
@@ -338,16 +341,19 @@ document.getElementById("exercise-select").addEventListener("change", async (e) 
     infoEl.classList.remove("hidden");
 
     const submitBtn = document.getElementById("submit-btn");
+    const alreadyMsg = document.getElementById("already-submitted-msg");
     if (alreadySubmitted) {
       submitBtn.disabled = true;
       submitBtn.textContent = "✅ Déjà soumis";
       submitBtn.classList.replace("bg-blue-700", "bg-gray-400");
       submitBtn.classList.replace("hover:bg-blue-800", "hover:bg-gray-400");
+      alreadyMsg.classList.remove("hidden");
     } else {
       submitBtn.disabled = false;
       submitBtn.textContent = "📤 Soumettre";
       submitBtn.classList.replace("bg-gray-400", "bg-blue-700");
       submitBtn.classList.replace("hover:bg-gray-400", "hover:bg-blue-800");
+      alreadyMsg.classList.add("hidden");
     }
   } catch(e) { console.error(e); }
 });
