@@ -77,10 +77,11 @@ def seed_exercises():
             "title": "TP3 - Q1",
             "description": (
                 "Un capital de 20 000 € est placé à un taux annuel de 6 %.\n"
-                "Avec une boucle for, afficher le capital à la fin de chacune des 20 premières années.\n\n"
+                "Avec une boucle for, afficher le capital à la fin de chacune des 20 premières années, arrondi à l'unité.\n\n"
+                "Aide : utiliser la fonction round().\n\n"
                 "Exemple de sortie attendue :\n"
-                "Année 1 : 21200.0 €\n"
-                "Année 2 : 22472.0 €\n"
+                "Année 1 : 21200 €\n"
+                "Année 2 : 22472 €\n"
                 "..."
             ),
         },
