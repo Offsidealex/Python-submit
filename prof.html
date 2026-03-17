@@ -112,7 +112,7 @@
               </tr>
             </thead>
             <tbody id="submissions-tbody" class="divide-y divide-gray-100">
-              <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">Chargement…</td></tr>
+              <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Chargement…</td></tr>
             </tbody>
           </table>
         </div>
@@ -198,6 +198,9 @@
         </button>
         <span id="m-grade-saved" class="text-xs text-green-600 hidden">✅ Enregistré</span>
         <span id="m-auto-grade-saved" class="text-xs text-purple-600 hidden"></span>
+      </div>
+      <div id="m-ai-comment-section" class="hidden bg-purple-50 rounded-xl border border-purple-200 p-4 text-sm text-purple-800">
+        <b>🤖 Commentaire IA :</b> <span id="m-ai-comment"></span>
       </div>
       <div>
         <div class="flex items-center gap-3 mb-2">
@@ -341,7 +344,7 @@ async function loadSubmissions() {
   if (name) params.append("student_name", name);
 
   const tbody = document.getElementById("submissions-tbody");
-  tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">Chargement…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center text-gray-400">Chargement…</td></tr>';
 
   try {
     const res = await fetch(`${API_URL}/submissions?${params}`, {
@@ -349,7 +352,7 @@ async function loadSubmissions() {
     });
     const subs = await res.json();
     if (!subs.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">Aucune soumission.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Aucune soumission.</td></tr>';
       return;
     }
     tbody.innerHTML = subs.map(s => {
@@ -367,7 +370,7 @@ async function loadSubmissions() {
           <td class="px-4 py-3">${gradeCell(s.grade)}</td>
           <td class="px-4 py-3 text-gray-400 text-xs">${formatDate(s.submitted_at)}</td>
           <td class="px-4 py-3 flex gap-2">
-            <button onclick="viewSubmission(${s.id})" data-sub='${JSON.stringify(s)}'
+            <button onclick="viewSubmission(${s.id})" data-sub='${esc(JSON.stringify(s))}'
               class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg transition">
               👁 Voir
             </button>
@@ -379,7 +382,7 @@ async function loadSubmissions() {
         </tr>`;
     }).join("");
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-red-400">Erreur : ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-6 text-center text-red-400">Erreur : ${e.message}</td></tr>`;
   }
 }
 
@@ -397,9 +400,17 @@ function viewSubmission(id) {
   document.getElementById("m-output").textContent = s.output || "(aucune sortie)";
   document.getElementById("m-grade-input").value = s.grade !== null && s.grade !== undefined ? s.grade : "";
   document.getElementById("m-grade-saved").classList.add("hidden");
+  document.getElementById("m-auto-grade-saved").classList.add("hidden");
   document.getElementById("m-run-output").classList.add("hidden");
   document.getElementById("m-run-inputs").value = "";
   currentSubmissionId = s.id;
+  const aiCommentSec = document.getElementById("m-ai-comment-section");
+  if (s.ai_comment) {
+    document.getElementById("m-ai-comment").textContent = s.ai_comment;
+    aiCommentSec.classList.remove("hidden");
+  } else {
+    aiCommentSec.classList.add("hidden");
+  }
   const tests = s.test_results || [];
   const testSec = document.getElementById("m-tests-section");
   if (tests.length) {
