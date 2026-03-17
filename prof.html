@@ -286,6 +286,7 @@ const API_URL = "https://python-submit.onrender.com";
 let teacherPassword = "";
 let currentExerciseEdit = null;
 let currentSubmissionId = null;
+const submissionsCache = {};
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 async function login() {
@@ -355,6 +356,7 @@ async function loadSubmissions() {
       tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Aucune soumission.</td></tr>';
       return;
     }
+    subs.forEach(s => { submissionsCache[s.id] = s; });
     tbody.innerHTML = subs.map(s => {
       const tr = s.test_results || [];
       const passed = tr.filter(t => t.passed).length;
@@ -370,7 +372,7 @@ async function loadSubmissions() {
           <td class="px-4 py-3">${gradeCell(s.grade)}</td>
           <td class="px-4 py-3 text-gray-400 text-xs">${formatDate(s.submitted_at)}</td>
           <td class="px-4 py-3 flex gap-2">
-            <button onclick="viewSubmission(${s.id})" data-sub='${esc(JSON.stringify(s))}'
+            <button onclick="viewSubmission(${s.id})"
               class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg transition">
               👁 Voir
             </button>
@@ -389,8 +391,8 @@ async function loadSubmissions() {
 document.getElementById("filter-btn").addEventListener("click", loadSubmissions);
 
 function viewSubmission(id) {
-  const btn = document.querySelector(`button[onclick="viewSubmission(${id})"]`);
-  const s = JSON.parse(btn.dataset.sub);
+  const s = submissionsCache[id];
+  if (!s) return;
   document.getElementById("modal-title").textContent = `Soumission #${s.id}`;
   document.getElementById("m-student").textContent = s.student_name;
   document.getElementById("m-class").textContent = s.class_id;
