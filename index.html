@@ -83,10 +83,28 @@
       <!-- Choix exercice -->
       <section class="bg-white rounded-xl shadow p-6 space-y-4">
         <h2 class="text-lg font-semibold text-gray-800">📋 Exercice</h2>
-        <select id="exercise-select"
-          class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-          <option value="">— Chargement… —</option>
+
+        <!-- Tuiles TP -->
+        <div id="tp-tiles-view">
+          <div id="tp-tiles" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <p class="text-gray-400 text-sm col-span-full">Chargement…</p>
+          </div>
+        </div>
+
+        <!-- Tuiles Exercices (après clic sur un TP) -->
+        <div id="exercise-tiles-view" class="hidden space-y-3">
+          <button id="back-to-tp-btn"
+            class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
+            ← Retour aux TPs
+          </button>
+          <div id="exercise-tiles" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+        </div>
+
+        <!-- Select caché — utilisé par la logique existante -->
+        <select id="exercise-select" class="hidden">
+          <option value="">— Sélectionnez un exercice —</option>
         </select>
+
         <div id="exercise-info" class="hidden bg-blue-50 rounded-lg p-4 space-y-1">
           <p id="exercise-desc" class="text-sm text-gray-700 whitespace-pre-wrap"></p>
           <p id="exercise-deadline" class="text-xs text-orange-600 font-medium"></p>
@@ -332,8 +350,79 @@ async function loadExercises() {
       });
       sel.appendChild(group);
     });
+
+    // Tuiles TP
+    const tpTilesEl = document.getElementById("tp-tiles");
+    tpTilesEl.innerHTML = "";
+    Object.entries(tpGroups).forEach(([tp, exs]) => {
+      const div = document.createElement("div");
+      div.className = "cursor-pointer bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-xl p-5 shadow hover:from-blue-700 hover:to-blue-800 transition select-none";
+      div.innerHTML = `
+        <p class="text-2xl font-bold">${escHtml(tp)}</p>
+        <p class="text-blue-200 text-sm mt-1">${exs.length} exercice(s)</p>`;
+      div.addEventListener("click", () => showTpExercises(tp, exs));
+      tpTilesEl.appendChild(div);
+    });
   } catch {
-    document.getElementById("exercise-select").innerHTML = '<option value="">⚠ Impossible de charger</option>';
+    document.getElementById("tp-tiles").innerHTML = '<p class="text-red-400 text-sm col-span-full">⚠ Impossible de charger les exercices</p>';
+  }
+}
+
+async function showTpExercises(tp, exercises) {
+  document.getElementById("tp-tiles-view").classList.add("hidden");
+  document.getElementById("exercise-tiles-view").classList.remove("hidden");
+  document.getElementById("exercise-info").classList.add("hidden");
+  const tilesEl = document.getElementById("exercise-tiles");
+  tilesEl.innerHTML = '<p class="text-gray-400 text-sm">Chargement…</p>';
+
+  // Récupérer les exercices déjà soumis
+  let submittedIds = new Set();
+  try {
+    const res = await fetch(`${API_URL}/submissions/student?student_name=${encodeURIComponent(studentName)}&class_id=${encodeURIComponent(studentClass)}`);
+    const subs = await res.json();
+    submittedIds = new Set(subs.map(s => s.exercise_id));
+  } catch {}
+
+  tilesEl.innerHTML = exercises.map(ex => {
+    const submitted = submittedIds.has(ex.id);
+    const shortName = ex.title.includes(' - ') ? ex.title.split(' - ').slice(1).join(' - ') : ex.title;
+    return `
+      <div id="ex-tile-${ex.id}"
+        onclick="${submitted ? '' : `selectExercise(${ex.id})`}"
+        class="bg-white border-2 ${submitted ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-blue-500 cursor-pointer'} rounded-xl p-4 transition space-y-1">
+        <div class="flex justify-between items-start gap-2">
+          <p class="font-semibold text-gray-800">${escHtml(shortName)}</p>
+          ${submitted ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full shrink-0">✅ Soumis</span>' : ''}
+        </div>
+        ${ex.deadline ? `<p class="text-xs text-orange-500">⏰ ${formatDate(ex.deadline)}</p>` : ''}
+      </div>`;
+  }).join("");
+}
+
+function selectExercise(id) {
+  // Désélectionner les tuiles précédentes
+  document.querySelectorAll("[id^='ex-tile-']").forEach(t => {
+    t.classList.remove("border-blue-500", "bg-blue-50");
+    if (!t.classList.contains("border-green-300")) t.classList.add("border-gray-200");
+  });
+  // Sélectionner la tuile cliquée
+  const tile = document.getElementById(`ex-tile-${id}`);
+  if (tile) { tile.classList.remove("border-gray-200"); tile.classList.add("border-blue-500", "bg-blue-50"); }
+  // Déclencher la logique existante via le select caché
+  const sel = document.getElementById("exercise-select");
+  sel.value = id;
+  sel.dispatchEvent(new Event('change'));
+}
+
+function markTileSubmitted(id) {
+  const tile = document.getElementById(`ex-tile-${id}`);
+  if (!tile) return;
+  tile.classList.remove("border-blue-500", "border-gray-200", "bg-blue-50", "cursor-pointer", "hover:border-blue-500");
+  tile.classList.add("border-green-300", "bg-green-50");
+  tile.onclick = null;
+  const titleEl = tile.querySelector(".flex");
+  if (titleEl && !titleEl.querySelector(".shrink-0")) {
+    titleEl.innerHTML += '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full shrink-0">✅ Soumis</span>';
   }
 }
 
@@ -440,6 +529,7 @@ document.getElementById("submit-btn").addEventListener("click", async () => {
     });
     if (!res.ok) throw new Error(await res.text());
     showSubmitMsg("✅ Programme déposé avec succès !", "green");
+    markTileSubmitted(currentExercise.id);
   } catch(e) {
     showSubmitMsg("❌ Erreur : " + e.message, "red");
   } finally {
@@ -449,6 +539,19 @@ document.getElementById("submit-btn").addEventListener("click", async () => {
 
 document.getElementById("clear-btn").addEventListener("click", () => {
   if (confirm("Effacer le code ?")) monacoEditor.setValue("");
+});
+
+document.getElementById("back-to-tp-btn").addEventListener("click", () => {
+  document.getElementById("tp-tiles-view").classList.remove("hidden");
+  document.getElementById("exercise-tiles-view").classList.add("hidden");
+  document.getElementById("exercise-info").classList.add("hidden");
+  document.getElementById("output-section").classList.add("hidden");
+  document.getElementById("test-section").classList.add("hidden");
+  document.getElementById("submit-msg").classList.add("hidden");
+  const sel = document.getElementById("exercise-select");
+  sel.value = "";
+  currentExercise = null;
+  lastOutput = ""; lastTestResults = [];
 });
 
 // ─── Historique ───────────────────────────────────────────────────────────────
