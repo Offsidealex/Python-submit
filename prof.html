@@ -837,7 +837,11 @@ import sys, builtins
 from io import StringIO
 _inputs = ${JSON.stringify(inputs)}
 _idx = 0
+_input_calls = [0]
 def _mock_input(prompt=""):
+    _input_calls[0] += 1
+    if _input_calls[0] > 500:
+        raise RuntimeError("⚠ Boucle infinie détectée : trop d'appels à input(). Vérifiez votre boucle while.")
     global _idx
     if _idx < len(_inputs):
         v = _inputs[_idx]; _idx += 1; return v
@@ -854,7 +858,10 @@ sys.stdout = sys.__stdout__
 (_out, _err)
 `;
   try {
-    const result = await pyodide.runPythonAsync(wrappedReal);
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("⏱ Temps dépassé (10 s) : programme trop long ou boucle infinie.")), 10000)
+    );
+    const result = await Promise.race([pyodide.runPythonAsync(wrappedReal), timeout]);
     return [result.get(0) || "", result.get(1) || ""];
   } catch(e) {
     return ["", String(e)];
