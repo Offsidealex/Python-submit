@@ -92,11 +92,21 @@
         </div>
 
         <!-- Tuiles Exercices (après clic sur un TP) -->
-        <div id="exercise-tiles-view" class="hidden space-y-3">
+        <div id="exercise-tiles-view" class="hidden space-y-4">
           <button id="back-to-tp-btn"
             class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
             ← Retour aux TPs
           </button>
+          <!-- En-tête TP : contexte + compétences + exemple -->
+          <div id="tp-header" class="hidden rounded-xl overflow-hidden border border-blue-200">
+            <div id="tp-header-title" class="bg-blue-700 text-white px-4 py-2 text-sm font-bold"></div>
+            <div class="bg-blue-50 px-4 py-2 text-sm text-blue-800 italic" id="tp-header-context"></div>
+            <div class="bg-white px-4 py-2 text-sm text-gray-700" id="tp-header-skills"></div>
+            <div id="tp-header-example-block" class="hidden">
+              <div class="bg-gray-100 px-4 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">Exemple</div>
+              <pre id="tp-header-example" class="bg-gray-900 text-green-400 px-4 py-3 text-xs font-mono overflow-x-auto whitespace-pre"></pre>
+            </div>
+          </div>
           <div id="exercise-tiles" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
         </div>
 
@@ -404,10 +414,120 @@ async function loadExercises() {
   }
 }
 
+// ─── Informations contextuelles par TP ───────────────────────────────────────
+const TP_INFO = {
+  "TP3": {
+    context: "Contexte : mesures répétées et simulations",
+    skills: "Maîtriser for (nombre d'itérations connu) et while (condition de sortie). Utiliser range(), accumuler des valeurs.",
+    example:
+`for i in range(1, 10, 2):  # 1, 3, 5, 7, 9
+    print(i)
+
+U = 100
+compteur = 0
+while U >= 1:
+    U /= 2
+    compteur += 1`,
+  },
+  "TP4": {
+    context: "Contexte : bibliothèque de calculs électroniques réutilisables",
+    skills: "Définir des fonctions avec def, passer des paramètres, utiliser return, les valeurs par défaut et retourner plusieurs résultats.",
+    example:
+`def loi_ohm(R, I):
+    """Retourne U = R * I"""
+    return R * I
+
+tension = loi_ohm(470, 0.02)  # appel
+print(f"U = {tension} V")`,
+  },
+  "TP5": {
+    context: "Contexte : traitement d'une série de mesures de tension",
+    skills: "Créer, indexer, modifier des listes ; utiliser append, remove, sort ; parcourir avec for ; utiliser min, max, sum, len.",
+    example:
+`mesures = [4.98, 5.02, 4.95, 5.10, 4.88]
+print(mesures[0])    # 4.98
+print(mesures[-1])   # 4.88
+mesures.append(5.05)
+print(len(mesures))  # 6`,
+  },
+  "TP6": {
+    context: "Contexte : analyse de trames de communication série ASCII",
+    skills: "Concaténation, indexation, méthodes upper/lower, split, strip, startswith, find, formatage avec f-strings.",
+    example:
+`trame = "START:12.5:STOP"
+print(trame.split(":"))        # ['START', '12.5', 'STOP']
+print(trame.startswith("ST"))  # True
+print(trame[6:9])              # 12.`,
+  },
+  "TP7": {
+    context: "Contexte : catalogue de composants électroniques",
+    skills: "Créer, lire, modifier des dictionnaires ; utiliser keys(), values(), items() ; travailler avec des dictionnaires imbriqués.",
+    example:
+`composant = {"référence": "R470", "valeur": 470, "tolérance": 5}
+print(composant["valeur"])   # 470
+composant["tolérance"] = 1   # modification`,
+  },
+  "TP8": {
+    context: "Contexte : datalogger – enregistrement de mesures",
+    skills: "Ouvrir, lire, écrire des fichiers avec open() et with ; utiliser le module csv ; gérer les erreurs avec try / except.",
+    example:
+`with open("mesures.txt", "w", encoding="utf-8") as f:
+    f.write("5.02\\n")
+
+with open("mesures.txt", "r", encoding="utf-8") as f:
+    for ligne in f:
+        print(ligne.strip())`,
+  },
+  "TP9": {
+    context: "Contexte : visualisation d'un signal sinusoïdal",
+    skills: "Utiliser numpy pour les calculs vectoriels et matplotlib.pyplot pour tracer des courbes. Générer u(t) = A·sin(2πft) et visualiser.",
+    example:
+`import numpy as np
+import matplotlib.pyplot as plt
+
+f, A = 50, 5
+t = np.linspace(0, 0.04, 1000)
+u = A * np.sin(2 * np.pi * f * t)
+plt.plot(t, u)
+plt.show()`,
+  },
+  "TP10": {
+    context: "Contexte : bilan des compétences – application complète",
+    skills: "Concevoir une application complète mobilisant toutes les compétences : fonctions, boucles, conditions, fichiers, formatage. Le code doit être structuré et commenté.",
+    example:
+`def menu():
+    print("0 – Quitter")
+    print("1 – Loi d'Ohm")
+    print("2 – Diviseur de tension")
+    print("3 – Résistance LED")
+    return int(input("Choix : "))`,
+  },
+};
+
 async function showTpExercises(tp, exercises) {
   document.getElementById("tp-tiles-view").classList.add("hidden");
   document.getElementById("exercise-tiles-view").classList.remove("hidden");
   document.getElementById("exercise-info").classList.add("hidden");
+
+  // En-tête TP
+  const info = TP_INFO[tp];
+  const headerEl = document.getElementById("tp-header");
+  if (info) {
+    document.getElementById("tp-header-title").textContent = tp;
+    document.getElementById("tp-header-context").textContent = info.context;
+    document.getElementById("tp-header-skills").textContent = info.skills;
+    const exBlock = document.getElementById("tp-header-example-block");
+    if (info.example) {
+      document.getElementById("tp-header-example").textContent = info.example;
+      exBlock.classList.remove("hidden");
+    } else {
+      exBlock.classList.add("hidden");
+    }
+    headerEl.classList.remove("hidden");
+  } else {
+    headerEl.classList.add("hidden");
+  }
+
   const tilesEl = document.getElementById("exercise-tiles");
   tilesEl.innerHTML = '<p class="text-gray-400 text-sm">Chargement…</p>';
 
