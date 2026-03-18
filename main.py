@@ -432,41 +432,6 @@ Réponds UNIQUEMENT en JSON avec ce format exact :
     return note, commentaire
 
 
-@app.get("/exercises/{exercise_id}/correction")
-def get_correction(exercise_id: int):
-    """Génère une correction modèle pour un exercice (affiché quand l'élève est bloqué pour triche)."""
-    import re as _re
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT title, description FROM exercises WHERE id=%s", (exercise_id,))
-    row = cur.fetchone()
-    cur.close(); conn.close()
-    if not row:
-        raise HTTPException(status_code=404, detail="Exercice introuvable")
-    prompt = f"""Tu es un professeur de Python au lycée. Fournis une correction modèle claire et pédagogique pour cet exercice.
-
-Exercice : {row['title']}
-Énoncé : {row['description']}
-
-Réponds UNIQUEMENT en JSON avec ce format exact :
-{{"correction": "..."}}
-
-- correction : le code Python solution complet, bien commenté, suivi d'une explication courte (2-3 phrases) sur l'approche utilisée. Sépare le code et l'explication par une ligne vide.
-"""
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=600,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    text = message.content[0].text.strip()
-    match = _re.search(r'\{.*\}', text, _re.DOTALL)
-    if not match:
-        raise HTTPException(status_code=500, detail="Réponse IA invalide")
-    data = json.loads(match.group())
-    return {"correction": data.get("correction", "")}
-
-
 @app.post("/submissions/{submission_id}/auto-grade")
 def auto_grade(submission_id: int, auth=Depends(check_teacher)):
     try:
