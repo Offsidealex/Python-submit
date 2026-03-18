@@ -70,6 +70,12 @@
       <button class="tab-btn px-6 py-4 text-sm text-gray-500" data-tab="exercises">
         📋 Exercices
       </button>
+      <button class="tab-btn px-6 py-4 text-sm text-gray-500" data-tab="tp">
+        📊 Par TP
+      </button>
+      <button class="tab-btn px-6 py-4 text-sm text-gray-500" data-tab="classe">
+        🏫 Classe
+      </button>
       <button class="tab-btn px-6 py-4 text-sm text-gray-500" data-tab="codes">
         🔑 Codes classes
       </button>
@@ -129,6 +135,63 @@
       </div>
       <div id="exercises-list" class="space-y-3">
         <p class="text-center text-gray-400 py-8">Chargement…</p>
+      </div>
+    </div>
+
+    <!-- ── Onglet Par TP ───────────────────────────────────────────────────── -->
+    <div id="tab-tp" class="hidden space-y-6">
+      <div class="bg-white rounded-xl shadow p-5 flex flex-wrap gap-4 items-end">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">TP</label>
+          <select id="tp-select"
+            class="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <option value="">— Choisir un TP —</option>
+          </select>
+        </div>
+        <button id="load-tp-btn"
+          class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+          Afficher
+        </button>
+      </div>
+      <div class="bg-white rounded-xl shadow overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-600 text-xs uppercase">
+              <tr>
+                <th class="px-4 py-3 text-left">Étudiant</th>
+                <th class="px-4 py-3 text-left">Classe</th>
+                <th class="px-4 py-3 text-left">Exercice</th>
+                <th class="px-4 py-3 text-left">Tests</th>
+                <th class="px-4 py-3 text-left">Note</th>
+                <th class="px-4 py-3 text-left">Date</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tp-submissions-tbody">
+              <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Sélectionnez un TP ci-dessus</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Onglet Classe ────────────────────────────────────────────────────── -->
+    <div id="tab-classe" class="hidden space-y-6">
+      <div class="bg-white rounded-xl shadow p-5 flex flex-wrap gap-4 items-end">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Classe</label>
+          <select id="classe-select"
+            class="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <option value="">— Choisir une classe —</option>
+          </select>
+        </div>
+        <button id="load-classe-btn"
+          class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+          Afficher
+        </button>
+      </div>
+      <div id="classe-table-container" class="bg-white rounded-xl shadow overflow-hidden">
+        <p class="text-center text-gray-400 py-8">Sélectionnez une classe ci-dessus</p>
       </div>
     </div>
 
@@ -287,6 +350,7 @@ let teacherPassword = "";
 let currentExerciseEdit = null;
 let currentSubmissionId = null;
 const submissionsCache = {};
+let allExercisesList = [];
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 async function login() {
@@ -324,7 +388,11 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
     document.getElementById("tab-submissions").classList.toggle("hidden", btn.dataset.tab !== "submissions");
     document.getElementById("tab-exercises").classList.toggle("hidden", btn.dataset.tab !== "exercises");
     document.getElementById("tab-codes").classList.toggle("hidden", btn.dataset.tab !== "codes");
+    document.getElementById("tab-tp").classList.toggle("hidden", btn.dataset.tab !== "tp");
+    document.getElementById("tab-classe").classList.toggle("hidden", btn.dataset.tab !== "classe");
     if (btn.dataset.tab === "codes") loadCodes();
+    if (btn.dataset.tab === "tp") populateTpSelect();
+    if (btn.dataset.tab === "classe") loadClasseSelect();
   });
 });
 
@@ -443,6 +511,7 @@ async function loadExercises() {
   try {
     const res = await fetch(`${API_URL}/exercises`);
     const exercises = await res.json();
+    allExercisesList = exercises;
     const listEl = document.getElementById("exercises-list");
     if (!exercises.length) {
       listEl.innerHTML = '<p class="text-center text-gray-400 py-8">Aucun exercice. Créez-en un !</p>';
@@ -792,6 +861,174 @@ document.getElementById("m-toggle-inputs").addEventListener("click", () => {
   sec.classList.toggle("hidden");
   document.getElementById("m-toggle-inputs").textContent =
     sec.classList.contains("hidden") ? "+ inputs" : "- inputs";
+});
+
+// ─── Onglet Par TP ────────────────────────────────────────────────────────────
+function getTpFromTitle(title) {
+  return title && title.includes(' - ') ? title.split(' - ')[0].trim() : null;
+}
+
+function populateTpSelect() {
+  const tps = [...new Set(allExercisesList.map(ex => getTpFromTitle(ex.title)).filter(Boolean))];
+  const sel = document.getElementById("tp-select");
+  sel.innerHTML = '<option value="">— Choisir un TP —</option>';
+  tps.forEach(tp => {
+    const opt = document.createElement("option");
+    opt.value = tp;
+    opt.textContent = tp;
+    sel.appendChild(opt);
+  });
+}
+
+document.getElementById("load-tp-btn").addEventListener("click", async () => {
+  const tp = document.getElementById("tp-select").value;
+  if (!tp) return;
+  const tpExercises = allExercisesList.filter(ex => getTpFromTitle(ex.title) === tp);
+  const tbody = document.getElementById("tp-submissions-tbody");
+  tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center text-gray-400">Chargement…</td></tr>';
+  try {
+    const allSubs = [];
+    for (const ex of tpExercises) {
+      const res = await fetch(`${API_URL}/submissions?exercise_id=${ex.id}`, {
+        headers: { "x-teacher-password": teacherPassword }
+      });
+      const subs = await res.json();
+      subs.forEach(s => { submissionsCache[s.id] = s; allSubs.push(s); });
+    }
+    if (!allSubs.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Aucune soumission pour ce TP.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = allSubs.map(s => {
+      const tr = s.test_results || [];
+      const passed = tr.filter(t => t.passed).length;
+      const badge = tr.length === 0
+        ? '<span class="text-xs text-gray-400">—</span>'
+        : `<span class="text-xs px-2 py-1 rounded-full ${passed === tr.length ? "badge-pass" : "badge-fail"}">${passed}/${tr.length}</span>`;
+      return `
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3 font-medium">${esc(s.student_name)}</td>
+          <td class="px-4 py-3 text-gray-500">${esc(s.class_id)}</td>
+          <td class="px-4 py-3">${esc(s.exercise_title)}</td>
+          <td class="px-4 py-3">${badge}</td>
+          <td class="px-4 py-3">${gradeCell(s.grade)}</td>
+          <td class="px-4 py-3 text-gray-400 text-xs">${formatDate(s.submitted_at)}</td>
+          <td class="px-4 py-3 flex gap-2">
+            <button onclick="viewSubmission(${s.id})"
+              class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg transition">
+              👁 Voir
+            </button>
+            <button onclick="deleteSubmission(${s.id})"
+              class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg transition">
+              🗑
+            </button>
+          </td>
+        </tr>`;
+    }).join("");
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-red-400 text-center px-4 py-6">Erreur : ${e.message}</td></tr>`;
+  }
+});
+
+// ─── Onglet Classe ────────────────────────────────────────────────────────────
+async function loadClasseSelect() {
+  try {
+    const res = await fetch(`${API_URL}/stats`, {
+      headers: { "x-teacher-password": teacherPassword }
+    });
+    const stats = await res.json();
+    const sel = document.getElementById("classe-select");
+    sel.innerHTML = '<option value="">— Choisir une classe —</option>';
+    (stats.classes || []).sort().forEach(cls => {
+      const opt = document.createElement("option");
+      opt.value = cls;
+      opt.textContent = cls;
+      sel.appendChild(opt);
+    });
+  } catch (e) { console.error("Erreur chargement classes:", e); }
+}
+
+document.getElementById("load-classe-btn").addEventListener("click", async () => {
+  const cls = document.getElementById("classe-select").value;
+  if (!cls) return;
+  const container = document.getElementById("classe-table-container");
+  container.innerHTML = '<p class="text-center text-gray-400 py-8">Chargement…</p>';
+  try {
+    const res = await fetch(`${API_URL}/submissions?class_id=${encodeURIComponent(cls)}`, {
+      headers: { "x-teacher-password": teacherPassword }
+    });
+    const subs = await res.json();
+    if (!subs.length) {
+      container.innerHTML = '<p class="text-center text-gray-400 py-8">Aucune soumission pour cette classe.</p>';
+      return;
+    }
+
+    // Liste des TPs dans l'ordre
+    const tpList = [...new Set(allExercisesList.map(ex => getTpFromTitle(ex.title)).filter(Boolean))];
+    // Nombre d'exercices par TP
+    const tpExCount = {};
+    allExercisesList.forEach(ex => {
+      const tp = getTpFromTitle(ex.title);
+      if (tp) tpExCount[tp] = (tpExCount[tp] || 0) + 1;
+    });
+
+    // Organisation des soumissions par élève → exercice (dernière soumission)
+    const studentData = {};
+    subs.forEach(s => {
+      if (!studentData[s.student_name]) studentData[s.student_name] = {};
+      if (!studentData[s.student_name][s.exercise_title]) {
+        studentData[s.student_name][s.exercise_title] = s;
+      }
+    });
+
+    const students = Object.keys(studentData).sort();
+
+    // Calculer note totale par TP par élève
+    function tpGrade(student, tp) {
+      const tpExercises = allExercisesList.filter(ex => getTpFromTitle(ex.title) === tp);
+      const exData = studentData[student] || {};
+      let total = 0, graded = 0, submitted = 0;
+      tpExercises.forEach(ex => {
+        const sub = exData[ex.title];
+        if (sub) {
+          submitted++;
+          if (sub.grade !== null && sub.grade !== undefined) {
+            total += parseFloat(sub.grade);
+            graded++;
+          }
+        }
+      });
+      return { total: Math.round(total * 10) / 10, submitted, graded, count: tpExercises.length };
+    }
+
+    container.innerHTML = `
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-600 text-xs uppercase">
+            <tr>
+              <th class="px-4 py-3 text-left">Étudiant</th>
+              ${tpList.map(tp => `<th class="px-4 py-3 text-center">${esc(tp)}<br><span class="font-normal normal-case text-gray-400">/${tpExCount[tp] * 2}</span></th>`).join('')}
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            ${students.map(student => `
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-medium">${esc(student)}</td>
+                ${tpList.map(tp => {
+                  const g = tpGrade(student, tp);
+                  if (g.submitted === 0)
+                    return `<td class="px-4 py-3 text-center text-gray-300">—</td>`;
+                  if (g.graded === g.count)
+                    return `<td class="px-4 py-3 text-center"><span class="font-bold text-blue-700">${g.total}</span></td>`;
+                  return `<td class="px-4 py-3 text-center"><span class="text-yellow-600 text-xs">⏳ ${g.graded}/${g.count}</span></td>`;
+                }).join('')}
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch (e) {
+    container.innerHTML = `<p class="text-red-400 text-center py-8">Erreur : ${e.message}</p>`;
+  }
 });
 
 </script>

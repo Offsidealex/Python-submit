@@ -202,6 +202,7 @@ let lastOutput = "";
 let lastTestResults = [];
 let studentName = "";
 let studentClass = "";
+let allExercises = [];
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 function tryRestoreSession() {
@@ -308,14 +309,28 @@ loadPyodideEnv();
 async function loadExercises() {
   try {
     const res = await fetch(`${API_URL}/exercises`);
-    const exercises = await res.json();
+    allExercises = await res.json();
     const sel = document.getElementById("exercise-select");
     sel.innerHTML = '<option value="">— Sélectionnez un exercice —</option>';
-    exercises.forEach(ex => {
-      const opt = document.createElement("option");
-      opt.value = ex.id;
-      opt.textContent = ex.title + (ex.deadline ? ` (avant le ${formatDate(ex.deadline)})` : "");
-      sel.appendChild(opt);
+
+    // Grouper par TP (préfixe avant " - ")
+    const tpGroups = {};
+    allExercises.forEach(ex => {
+      const tp = ex.title.includes(' - ') ? ex.title.split(' - ')[0].trim() : 'Autres';
+      if (!tpGroups[tp]) tpGroups[tp] = [];
+      tpGroups[tp].push(ex);
+    });
+
+    Object.entries(tpGroups).forEach(([tp, exs]) => {
+      const group = document.createElement("optgroup");
+      group.label = tp;
+      exs.forEach(ex => {
+        const opt = document.createElement("option");
+        opt.value = ex.id;
+        opt.textContent = ex.title + (ex.deadline ? ` (avant le ${formatDate(ex.deadline)})` : "");
+        group.appendChild(opt);
+      });
+      sel.appendChild(group);
     });
   } catch {
     document.getElementById("exercise-select").innerHTML = '<option value="">⚠ Impossible de charger</option>';
@@ -449,47 +464,63 @@ async function loadHistory() {
       return;
     }
 
-    // ── Calcul total TP3 ──────────────────────────────────────────────────
-    const tp3Latest = {};
-    subs.forEach(s => {
-      if (s.exercise_title && s.exercise_title.startsWith('TP3 - Q') && !tp3Latest[s.exercise_title])
-        tp3Latest[s.exercise_title] = s;
+    // ── Calcul note par TP (générique) ───────────────────────────────────
+    // Nombre d'exercices par TP d'après la liste complète
+    const tpExCount = {};
+    allExercises.forEach(ex => {
+      const tp = ex.title.includes(' - ') ? ex.title.split(' - ')[0].trim() : null;
+      if (tp) tpExCount[tp] = (tpExCount[tp] || 0) + 1;
     });
-    const tp3Exercises = Object.values(tp3Latest);
-    const tp3Graded = tp3Exercises.filter(s => s.grade !== null && s.grade !== undefined);
-    const tp3Total = tp3Graded.reduce((sum, s) => sum + parseFloat(s.grade), 0);
-    const allSubmitted = tp3Exercises.length === 5;
-    const allGraded = tp3Graded.length === 5;
 
-    let tp3Card = "";
-    if (allSubmitted) {
+    // Grouper les soumissions par TP, en gardant la plus récente par titre d'exercice
+    const tpOrder = [];
+    const tpData = {}; // tp → { latestByTitle: {}, allSubs: [] }
+    subs.forEach(s => {
+      const tp = s.exercise_title && s.exercise_title.includes(' - ')
+        ? s.exercise_title.split(' - ')[0].trim() : null;
+      if (!tp) return;
+      if (!tpData[tp]) { tpData[tp] = { latestByTitle: {}, allSubs: [] }; tpOrder.push(tp); }
+      tpData[tp].allSubs.push(s);
+      if (!tpData[tp].latestByTitle[s.exercise_title]) tpData[tp].latestByTitle[s.exercise_title] = s;
+    });
+
+    // Générer les cards de récap par TP
+    let tpCards = "";
+    tpOrder.forEach(tp => {
+      const latest = Object.values(tpData[tp].latestByTitle);
+      const totalInTp = tpExCount[tp] || latest.length;
+      const graded = latest.filter(s => s.grade !== null && s.grade !== undefined);
+      const totalGrade = graded.reduce((sum, s) => sum + parseFloat(s.grade), 0);
+      const allSubmitted = latest.length >= totalInTp;
+      const allGraded = allSubmitted && graded.length >= totalInTp;
+
       if (allGraded) {
-        const totalRounded = Math.round(tp3Total * 10) / 10;
-        tp3Card = `
+        const totalRounded = Math.round(totalGrade * 10) / 10;
+        tpCards += `
           <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl shadow-lg p-5 flex items-center justify-between">
             <div>
               <p class="text-blue-200 text-xs font-medium uppercase tracking-wide">Note finale</p>
-              <p class="text-lg font-bold mt-1">TP3 – Boucles <span class="font-mono">for</span> et <span class="font-mono">while</span></p>
-              <p class="text-blue-200 text-xs mt-1">5 exercices notés</p>
+              <p class="text-lg font-bold mt-1">${escHtml(tp)}</p>
+              <p class="text-blue-200 text-xs mt-1">${totalInTp} exercice(s) noté(s)</p>
             </div>
             <div class="text-right">
               <p class="text-4xl font-bold">${totalRounded}</p>
-              <p class="text-blue-200 text-sm">/10</p>
+              <p class="text-blue-200 text-sm">/${totalInTp * 2}</p>
             </div>
           </div>`;
-      } else {
-        tp3Card = `
+      } else if (allSubmitted) {
+        tpCards += `
           <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center gap-3">
             <span class="text-2xl">⏳</span>
             <div>
-              <p class="font-semibold text-yellow-800">TP3 – en attente de correction</p>
-              <p class="text-xs text-yellow-600">${tp3Graded.length}/5 exercice(s) noté(s) — revenez quand tous seront corrigés.</p>
+              <p class="font-semibold text-yellow-800">${escHtml(tp)} – en attente de correction</p>
+              <p class="text-xs text-yellow-600">${graded.length}/${totalInTp} exercice(s) noté(s) — revenez quand tous seront corrigés.</p>
             </div>
           </div>`;
       }
-    }
+    });
 
-    listEl.innerHTML = tp3Card + subs.map(s => {
+    listEl.innerHTML = tpCards + subs.map(s => {
       const tr = s.test_results || [];
       const passed = tr.filter(t => t.passed).length;
       const testBadge = tr.length
