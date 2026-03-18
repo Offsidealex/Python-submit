@@ -850,13 +850,48 @@ function viewMySubmission(id) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 async function runCode(code, inputs, interactive = false) {
-  // En mode interactif (bouton Exécuter), input() ouvre une vraie popup navigateur
-  const mockInputCode = interactive ? `
-from js import prompt as _js_prompt
+  let wrappedCode;
+
+  if (interactive) {
+    // Mode interactif : print() écrit directement dans le DOM, input() ouvre une popup
+    wrappedCode = `
+import sys, builtins
+from js import prompt as _js_prompt, document as _js_doc
+
+class _LiveOut:
+    def __init__(self):
+        self.text = ""
+    def write(self, s):
+        self.text += s
+        el = _js_doc.getElementById("output-box")
+        if el: el.textContent = self.text
+        sec = _js_doc.getElementById("output-section")
+        if sec: sec.classList.remove("hidden")
+    def flush(self): pass
+
+_live = _LiveOut()
+sys.stdout = _live
+
 def _mock_input(p=""):
     val = _js_prompt(p if p else "Entrée :")
     return "" if val is None else str(val)
-` : `
+
+builtins.input = _mock_input
+_err = ""
+try:
+    exec(${JSON.stringify(code)})
+except Exception as e:
+    _err = str(e)
+    _live.write("\\n--- ERREUR ---\\n" + _err)
+_out = _live.text
+sys.stdout = sys.__stdout__
+(_out, "")
+`;
+  } else {
+    // Mode tests/soumission : inputs prédéfinis, sortie capturée
+    wrappedCode = `
+import sys, builtins
+from io import StringIO
 _inputs = ${JSON.stringify(inputs)}
 _idx = 0
 _input_calls = [0]
@@ -868,11 +903,6 @@ def _mock_input(prompt=""):
     if _idx < len(_inputs):
         v = _inputs[_idx]; _idx += 1; return v
     return ""
-`;
-  const wrappedCode = `
-import sys, builtins
-from io import StringIO
-${mockInputCode}
 builtins.input = _mock_input
 sys.stdout = StringIO()
 _err = ""
@@ -884,6 +914,7 @@ _out = sys.stdout.getvalue()
 sys.stdout = sys.__stdout__
 (_out, _err)
 `;
+  }
   try {
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("⏱ Temps dépassé (10 s) : votre programme tourne trop longtemps. Vérifiez vos boucles.\n→ Python est en cours de redémarrage, patientez quelques secondes puis réessayez.")), 10000)
