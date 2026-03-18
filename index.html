@@ -324,25 +324,37 @@ async function loadPyodideEnv() {
 loadPyodideEnv();
 
 // ─── Exercices ────────────────────────────────────────────────────────────────
+function tpNumber(tp) {
+  const m = tp.match(/(\d+)/);
+  return m ? parseInt(m[1]) : 999;
+}
+
 async function loadExercises() {
   try {
-    const res = await fetch(`${API_URL}/exercises`);
-    allExercises = await res.json();
-    const sel = document.getElementById("exercise-select");
-    sel.innerHTML = '<option value="">— Sélectionnez un exercice —</option>';
+    const [exRes, subsRes] = await Promise.all([
+      fetch(`${API_URL}/exercises`),
+      fetch(`${API_URL}/submissions/student?student_name=${encodeURIComponent(studentName)}&class_id=${encodeURIComponent(studentClass)}`)
+    ]);
+    allExercises = await exRes.json();
+    const subs = await subsRes.json();
+    const submittedIds = new Set(subs.map(s => s.exercise_id));
 
-    // Grouper par TP (préfixe avant " - ")
+    // Grouper par TP et trier
     const tpGroups = {};
     allExercises.forEach(ex => {
       const tp = ex.title.includes(' - ') ? ex.title.split(' - ')[0].trim() : 'Autres';
       if (!tpGroups[tp]) tpGroups[tp] = [];
       tpGroups[tp].push(ex);
     });
+    const tpList = Object.keys(tpGroups).sort((a, b) => tpNumber(a) - tpNumber(b));
 
-    Object.entries(tpGroups).forEach(([tp, exs]) => {
+    // Select caché (optgroups)
+    const sel = document.getElementById("exercise-select");
+    sel.innerHTML = '<option value="">— Sélectionnez un exercice —</option>';
+    tpList.forEach(tp => {
       const group = document.createElement("optgroup");
       group.label = tp;
-      exs.forEach(ex => {
+      tpGroups[tp].forEach(ex => {
         const opt = document.createElement("option");
         opt.value = ex.id;
         opt.textContent = ex.title + (ex.deadline ? ` (avant le ${formatDate(ex.deadline)})` : "");
@@ -351,16 +363,40 @@ async function loadExercises() {
       sel.appendChild(group);
     });
 
+    // Déterminer les TPs déverrouillés (prérequis : tous les exercices du TP précédent soumis)
+    const unlockedTps = new Set();
+    tpList.forEach((tp, idx) => {
+      if (idx === 0) {
+        unlockedTps.add(tp);
+      } else {
+        const prev = tpList[idx - 1];
+        if (tpGroups[prev].every(ex => submittedIds.has(ex.id))) unlockedTps.add(tp);
+      }
+    });
+
     // Tuiles TP
     const tpTilesEl = document.getElementById("tp-tiles");
     tpTilesEl.innerHTML = "";
-    Object.entries(tpGroups).forEach(([tp, exs]) => {
+    tpList.forEach(tp => {
+      const exs = tpGroups[tp];
+      const unlocked = unlockedTps.has(tp);
+      const done = exs.filter(ex => submittedIds.has(ex.id)).length;
       const div = document.createElement("div");
-      div.className = "cursor-pointer bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-xl p-5 shadow hover:from-blue-700 hover:to-blue-800 transition select-none";
-      div.innerHTML = `
-        <p class="text-2xl font-bold">${escHtml(tp)}</p>
-        <p class="text-blue-200 text-sm mt-1">${exs.length} exercice(s)</p>`;
-      div.addEventListener("click", () => showTpExercises(tp, exs));
+      if (unlocked) {
+        const allDone = done === exs.length;
+        div.className = `cursor-pointer rounded-xl p-5 shadow transition select-none ${allDone
+          ? 'bg-gradient-to-br from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800'
+          : 'bg-gradient-to-br from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800'}`;
+        div.innerHTML = `
+          <p class="text-2xl font-bold">${allDone ? '✅ ' : ''}${escHtml(tp)}</p>
+          <p class="text-blue-100 text-sm mt-1">${done}/${exs.length} soumis</p>`;
+        div.addEventListener("click", () => showTpExercises(tp, exs));
+      } else {
+        div.className = "rounded-xl p-5 shadow select-none cursor-not-allowed bg-gray-200 text-gray-400";
+        div.innerHTML = `
+          <p class="text-2xl font-bold">🔒 ${escHtml(tp)}</p>
+          <p class="text-sm mt-1">Terminez le TP précédent d'abord</p>`;
+      }
       tpTilesEl.appendChild(div);
     });
   } catch {
@@ -531,6 +567,7 @@ document.getElementById("submit-btn").addEventListener("click", async () => {
     if (!res.ok) throw new Error(await res.text());
     showSubmitMsg("✅ Programme déposé avec succès !", "green");
     markTileSubmitted(currentExercise.id);
+    loadExercises(); // rafraîchit les tuiles TP (déverrouille le suivant si nécessaire)
   } catch(e) {
     showSubmitMsg("❌ Erreur : " + e.message, "red");
   } finally {
