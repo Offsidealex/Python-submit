@@ -71,6 +71,10 @@ def init_db():
         cur.execute("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_comment TEXT DEFAULT ''")
     except Exception:
         pass
+    try:
+        cur.execute("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS tab_switches INTEGER DEFAULT 0")
+    except Exception:
+        pass
     conn.commit()
     cur.close()
     conn.close()
@@ -167,6 +171,7 @@ class SubmissionCreate(BaseModel):
     code: str
     output: str = ""
     test_results: List[dict] = []
+    tab_switches: int = 0
 
 class GradeUpdate(BaseModel):
     grade: Optional[float] = None
@@ -250,8 +255,8 @@ def submit(sub: SubmissionCreate):
         cur.close(); conn.close()
         raise HTTPException(status_code=409, detail="Exercice déjà soumis")
     cur.execute(
-            "INSERT INTO submissions (student_name, class_id, exercise_id, code, output, test_results) VALUES (%s,%s,%s,%s,%s,%s) RETURNING id",
-            (sub.student_name, sub.class_id, sub.exercise_id, sub.code, sub.output, json.dumps(sub.test_results))
+            "INSERT INTO submissions (student_name, class_id, exercise_id, code, output, test_results, tab_switches) VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            (sub.student_name, sub.class_id, sub.exercise_id, sub.code, sub.output, json.dumps(sub.test_results), sub.tab_switches)
         )
     new_id = cur.fetchone()[0]
     conn.commit(); cur.close(); conn.close()
@@ -349,7 +354,7 @@ def _run_auto_grade(submission_id: int):
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
-        SELECT s.code, s.output, e.title, e.description
+        SELECT s.code, s.output, s.tab_switches, e.title, e.description
         FROM submissions s
         JOIN exercises e ON s.exercise_id = e.id
         WHERE s.id = %s
@@ -358,6 +363,25 @@ def _run_auto_grade(submission_id: int):
     if not row:
         cur.close(); conn.close()
         raise ValueError("Soumission introuvable")
+
+    tab_switches = row.get("tab_switches") or 0
+
+    # Si l'élève a changé de page 2 fois ou plus, note 0 directement sans appel IA
+    if tab_switches >= 2:
+        note = 0.0
+        commentaire = "Note 0 : l'élève a changé de page 2 fois ou plus pendant l'exercice (détection anti-triche). Soumission non évaluée."
+        cur2 = conn.cursor()
+        cur2.execute(
+            "UPDATE submissions SET grade=%s, ai_comment=%s WHERE id=%s",
+            (note, commentaire, submission_id)
+        )
+        conn.commit()
+        cur2.close(); cur.close(); conn.close()
+        return note, commentaire
+
+    tab_warning = ""
+    if tab_switches == 1:
+        tab_warning = "\n\nATTENTION : l'élève a changé de page 1 fois pendant l'exercice (détection anti-triche). Enlève 1 point à la note (minimum 0) et mentionne-le explicitement dans le commentaire."
 
     prompt = f"""Tu es un professeur de Python bienveillant au lycée. Évalue ce code d'élève.
 
@@ -370,7 +394,7 @@ Code de l'élève :
 ```
 
 Sortie produite par le programme :
-{row['output'] or '(aucune sortie)'}
+{row['output'] or '(aucune sortie)'}{tab_warning}
 
 Réponds UNIQUEMENT en JSON avec ce format exact :
 {{"note": 0.0, "commentaire": "..."}}
@@ -391,6 +415,8 @@ Réponds UNIQUEMENT en JSON avec ce format exact :
         raise ValueError("Réponse JSON invalide")
     data = json.loads(match.group())
     note = float(data["note"])
+    if tab_switches == 1:
+        note = max(0, note - 1)
     note = max(0, min(2, note))
     commentaire = str(data.get("commentaire", ""))
 
