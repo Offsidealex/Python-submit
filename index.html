@@ -636,7 +636,7 @@ document.getElementById("run-btn").addEventListener("click", async () => {
   // Vider la console avant chaque nouvelle exécution
   document.getElementById("output-section").classList.add("hidden");
   document.getElementById("output-box").textContent = "";
-  const [output, err] = await runCode(monacoEditor.getValue(), []);
+  const [output, err] = await runCode(monacoEditor.getValue(), [], true); // mode interactif
   lastOutput = output + (err ? "\n--- ERREUR ---\n" + err : "");
   showOutput(lastOutput);
 });
@@ -849,10 +849,14 @@ function viewMySubmission(id) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-async function runCode(code, inputs) {
-  const wrappedCode = `
-import sys, builtins
-from io import StringIO
+async function runCode(code, inputs, interactive = false) {
+  // En mode interactif (bouton Exécuter), input() ouvre une vraie popup navigateur
+  const mockInputCode = interactive ? `
+from js import prompt as _js_prompt
+def _mock_input(p=""):
+    val = _js_prompt(p if p else "Entrée :")
+    return "" if val is None else str(val)
+` : `
 _inputs = ${JSON.stringify(inputs)}
 _idx = 0
 _input_calls = [0]
@@ -864,6 +868,11 @@ def _mock_input(prompt=""):
     if _idx < len(_inputs):
         v = _inputs[_idx]; _idx += 1; return v
     return ""
+`;
+  const wrappedCode = `
+import sys, builtins
+from io import StringIO
+${mockInputCode}
 builtins.input = _mock_input
 sys.stdout = StringIO()
 _err = ""
