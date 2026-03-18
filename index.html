@@ -984,10 +984,16 @@ function showCheatWarning() {
 }
 
 function showCheatBlock() {
+  const correctionHtml = currentExercise && currentExercise.description
+    ? `<div class="mt-4 border-t border-red-200 pt-4">
+        <p class="font-semibold text-red-900 mb-2">📄 Énoncé / Correction :</p>
+        <pre class="bg-white border border-red-200 rounded-lg p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap">${escHtml(currentExercise.description)}</pre>
+       </div>`
+    : "";
   const el = document.getElementById("cheat-warning-box");
   if (el) {
     el.className = "rounded-xl p-4 text-sm font-medium bg-red-50 text-red-800 border border-red-400";
-    el.innerHTML = `🚫 <b>Soumission bloquée !</b> Vous avez changé de page une 2e fois. Votre note pour cet exercice est <b>0/2</b>. Vous ne pouvez plus soumettre. Consultez la correction ci-dessous.`;
+    el.innerHTML = `🚫 <b>Soumission bloquée !</b> Vous avez changé de page une 2e fois. Votre note pour cet exercice est <b>0/2</b>. Vous ne pouvez plus soumettre.${correctionHtml}`;
     el.classList.remove("hidden");
     el.scrollIntoView({ behavior: "smooth" });
   }
