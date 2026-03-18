@@ -637,11 +637,29 @@ document.getElementById("exercise-select").addEventListener("change", async (e) 
       submitBtn.classList.replace("hover:bg-blue-800", "hover:bg-gray-400");
       alreadyMsg.classList.remove("hidden");
     } else {
-      submitBtn.disabled = false;
-      submitBtn.textContent = "📤 Soumettre";
-      submitBtn.classList.replace("bg-gray-400", "bg-blue-700");
-      submitBtn.classList.replace("hover:bg-gray-400", "hover:bg-blue-800");
-      alreadyMsg.classList.add("hidden");
+      // Restaurer l'état anti-triche sauvegardé (survit à un rechargement)
+      const savedSwitches = loadCheatState(currentExercise.id);
+      if (savedSwitches >= 2) {
+        tabSwitchCount = savedSwitches;
+        cheatBlocked = true;
+        document.body.classList.add("cheat-block");
+        showCheatBlock();
+      } else if (savedSwitches === 1) {
+        tabSwitchCount = savedSwitches;
+        document.body.classList.add("cheat-warn");
+        showCheatWarning();
+        submitBtn.disabled = false;
+        submitBtn.textContent = "📤 Soumettre";
+        submitBtn.classList.replace("bg-gray-400", "bg-blue-700");
+        submitBtn.classList.replace("hover:bg-gray-400", "hover:bg-blue-800");
+        alreadyMsg.classList.add("hidden");
+      } else {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "📤 Soumettre";
+        submitBtn.classList.replace("bg-gray-400", "bg-blue-700");
+        submitBtn.classList.replace("hover:bg-gray-400", "hover:bg-blue-800");
+        alreadyMsg.classList.add("hidden");
+      }
     }
   } catch(e) { console.error(e); }
 });
@@ -961,10 +979,21 @@ function showSubmitMsg(msg, color) {
 function showError(msg) { showSubmitMsg("⚠ " + msg, "orange"); }
 
 // ─── Anti-triche : détection changement de page ───────────────────────────────
+function cheatKey(exId) {
+  return `cheat_${studentName}_${studentClass}_${exId}`;
+}
+function saveCheatState(exId, count) {
+  localStorage.setItem(cheatKey(exId), count);
+}
+function loadCheatState(exId) {
+  return parseInt(localStorage.getItem(cheatKey(exId)) || "0");
+}
+
 document.addEventListener("visibilitychange", () => {
   if (!currentExercise || cheatBlocked) return;
   if (document.hidden) {
     tabSwitchCount++;
+    saveCheatState(currentExercise.id, tabSwitchCount);
   } else {
     if (tabSwitchCount === 1) {
       showCheatWarning();
