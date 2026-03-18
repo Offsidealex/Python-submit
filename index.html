@@ -633,6 +633,9 @@ document.getElementById("exercise-select").addEventListener("change", async (e) 
 // ─── Exécution ────────────────────────────────────────────────────────────────
 document.getElementById("run-btn").addEventListener("click", async () => {
   if (!pyodide) return alert("Python se charge encore, patientez…");
+  // Vider la console avant chaque nouvelle exécution
+  document.getElementById("output-section").classList.add("hidden");
+  document.getElementById("output-box").textContent = "";
   const [output, err] = await runCode(monacoEditor.getValue(), []);
   lastOutput = output + (err ? "\n--- ERREUR ---\n" + err : "");
   showOutput(lastOutput);
