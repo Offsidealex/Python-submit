@@ -223,6 +223,14 @@
 <script>
 const API_URL = "https://python-submit.onrender.com";
 
+// Fonction appelée par Python en temps réel pour afficher la sortie
+window._pyLiveOutput = function(text) {
+  const el = document.getElementById("output-box");
+  const sec = document.getElementById("output-section");
+  if (el) el.textContent = text;
+  if (sec) sec.classList.remove("hidden");
+};
+
 let pyodide = null;
 let monacoEditor = null;
 let currentExercise = null;
@@ -853,27 +861,22 @@ async function runCode(code, inputs, interactive = false) {
   let wrappedCode;
 
   if (interactive) {
-    // Mode interactif : print() écrit directement dans le DOM, input() ouvre une popup
+    // Mode interactif : print() appelle window._pyLiveOutput(), input() ouvre window.prompt()
     wrappedCode = `
-import sys, builtins
-from js import prompt as _js_prompt, document as _js_doc
+import sys, builtins, js
 
 class _LiveOut:
-    def __init__(self):
-        self.text = ""
+    def __init__(self): self.text = ""
     def write(self, s):
         self.text += s
-        el = _js_doc.getElementById("output-box")
-        if el: el.textContent = self.text
-        sec = _js_doc.getElementById("output-section")
-        if sec: sec.classList.remove("hidden")
+        js._pyLiveOutput(self.text)
     def flush(self): pass
 
 _live = _LiveOut()
 sys.stdout = _live
 
 def _mock_input(p=""):
-    val = _js_prompt(p if p else "Entrée :")
+    val = js.prompt(p if p else "Entrée :")
     return "" if val is None else str(val)
 
 builtins.input = _mock_input
@@ -916,17 +919,19 @@ sys.stdout = sys.__stdout__
 `;
   }
   try {
-    const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("⏱ Temps dépassé (10 s) : votre programme tourne trop longtemps. Vérifiez vos boucles.\n→ Python est en cours de redémarrage, patientez quelques secondes puis réessayez.")), 10000)
-    );
-    const result = await Promise.race([pyodide.runPythonAsync(wrappedCode), timeout]);
-    return [result.get(0)||"", result.get(1)||""];
-  } catch(e) {
-    // Si timeout : Pyodide est bloqué → le relancer pour débloquer l'élève
-    if (String(e).includes("Temps dépassé")) {
-      pyodide = null;
-      loadPyodideEnv();
+    if (interactive) {
+      // Pas de timeout : l'élève peut prendre le temps qu'il veut pour répondre
+      const result = await pyodide.runPythonAsync(wrappedCode);
+      return [result.get(0)||"", result.get(1)||""];
+    } else {
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("⏱ Temps dépassé (10 s) : votre programme tourne trop longtemps. Vérifiez vos boucles.\n→ Python est en cours de redémarrage, patientez quelques secondes puis réessayez.")), 10000)
+      );
+      const result = await Promise.race([pyodide.runPythonAsync(wrappedCode), timeout]);
+      return [result.get(0)||"", result.get(1)||""];
     }
+  } catch(e) {
+    if (String(e).includes("Temps dépassé")) { pyodide = null; loadPyodideEnv(); }
     return ["", String(e)];
   }
 }
