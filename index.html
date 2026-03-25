@@ -652,6 +652,8 @@ document.getElementById("exercise-select").addEventListener("change", async (e) 
       submitBtn.classList.replace("hover:bg-blue-800", "hover:bg-gray-400");
       alreadyMsg.classList.remove("hidden");
     } else {
+      // Pas de soumission en base → effacer l'état anti-triche (ex: prof a supprimé la soumission)
+      localStorage.removeItem(cheatKey(currentExercise.id));
       // Restaurer l'état anti-triche sauvegardé (survit à un rechargement)
       const savedSwitches = loadCheatState(currentExercise.id);
       if (savedSwitches >= 2) {
