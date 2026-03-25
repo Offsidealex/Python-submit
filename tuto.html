@@ -13,7 +13,7 @@
       background: #0f1f0f;
       border: 2px solid #1e3a1e;
       border-radius: 14px;
-      padding: 80px 24px 20px;
+      padding: 20px 24px;
       position: relative;
       overflow: visible;
     }
@@ -46,6 +46,8 @@
       transition: all 0.4s;
       border: 2px solid transparent;
       flex-shrink: 0;
+      position: relative;
+      overflow: visible;
     }
     .comp .icon { font-size: 22px; line-height: 1; }
     .comp .name { font-size: 9px; font-weight: 600; margin-top: 3px; text-align: center; letter-spacing: 0.02em; }
@@ -79,28 +81,29 @@
     /* ── ROBPY Robot ── */
     #robpy-robot {
       position: absolute;
-      top: 0; left: 0;
-      transition: transform 0.6s cubic-bezier(0.34,1.56,0.64,1);
-      z-index: 10;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
       pointer-events: none;
-      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.7));
     }
     @keyframes robot-idle {
-      0%,100% { transform: translateY(0px); }
-      50%      { transform: translateY(-4px); }
+      0%,100% { transform: translateX(-50%) translateY(0px); }
+      50%      { transform: translateX(-50%) translateY(-5px); }
     }
-    @keyframes robot-walk {
-      0%,100% { transform: rotate(-4deg); }
-      50%      { transform: rotate(4deg); }
+    @keyframes robot-arrive {
+      0%   { opacity: 0; transform: translateX(-50%) translateY(-16px); }
+      100% { opacity: 1; transform: translateX(-50%) translateY(0px); }
     }
     @keyframes robot-celebrate {
-      0%   { transform: translateY(0) rotate(0deg) scale(1); }
-      25%  { transform: translateY(-10px) rotate(-8deg) scale(1.1); }
-      75%  { transform: translateY(-10px) rotate(8deg) scale(1.1); }
-      100% { transform: translateY(0) rotate(0deg) scale(1); }
+      0%   { transform: translateX(-50%) translateY(0) rotate(0deg) scale(1); }
+      25%  { transform: translateX(-50%) translateY(-12px) rotate(-10deg) scale(1.15); }
+      75%  { transform: translateX(-50%) translateY(-12px) rotate(10deg) scale(1.15); }
+      100% { transform: translateX(-50%) translateY(0) rotate(0deg) scale(1); }
     }
     .robot-idle     { animation: robot-idle 2s ease-in-out infinite; }
-    .robot-walk     { animation: robot-walk 0.3s ease-in-out infinite; }
+    .robot-arrive   { animation: robot-arrive 0.4s ease forwards; }
     .robot-celebrate{ animation: robot-celebrate 0.5s ease-in-out 3; }
 
     /* ── Editor ── */
@@ -209,8 +212,8 @@
     <div class="text-green-600 text-xs font-mono mb-3 opacity-70 relative z-1">// CIRCUIT BOARD — ROBPY v1.0 — en cours de réparation...</div>
     <div id="board-nodes" class="relative z-1"></div>
 
-    <!-- Robot SVG -->
-    <svg id="robpy-robot" class="robot-idle" viewBox="0 0 46 62" width="46" height="62">
+    <!-- Robot SVG (déplacé par JS dans le composant actif) -->
+    <svg id="robpy-robot" class="robot-idle" viewBox="0 0 46 62" width="46" height="62" style="display:none">
       <!-- Antenne -->
       <rect x="21" y="0" width="4" height="10" rx="2" fill="#fbbf24"/>
       <circle cx="23" cy="1" r="5" fill="#fbbf24"/>
@@ -519,36 +522,27 @@ function renderBoard() {
   });
   container.appendChild(r2);
 
-  // Position robot — délai pour laisser le navigateur finir le layout flexbox
-  setTimeout(() => positionRobot(currentLevel), 150);
-}
-
-function getOffsetRelTo(el, ancestor) {
-  // Traverse offsetParent chain to get position relative to a specific ancestor
-  let x = 0, y = 0;
-  let cur = el;
-  while (cur && cur !== ancestor) {
-    x += cur.offsetLeft;
-    y += cur.offsetTop;
-    cur = cur.offsetParent;
-  }
-  return { x, y };
+  setTimeout(() => positionRobot(currentLevel), 100);
 }
 
 function positionRobot(idx) {
   const robot = document.getElementById("robpy-robot");
-  const board = document.getElementById("circuit-board");
   const comp  = document.getElementById(`comp-${idx}`);
-  if (!robot || !board || !comp) return;
+  if (!robot || !comp) return;
 
-  const pos = getOffsetRelTo(comp, board);
-  const x = pos.x + comp.offsetWidth  / 2 - 23; // centrer (robot width=46)
-  const y = pos.y - 72;                           // 72px au-dessus du composant
+  // Déplacer le robot dans le composant actif — zéro calcul de coordonnées
+  robot.style.display = "";
+  robot.classList.remove("robot-idle", "robot-celebrate", "robot-arrive");
+  comp.appendChild(robot);
 
-  robot.style.transform = `translate(${x}px, ${y}px)`;
+  // Forcer le reflow pour relancer l'animation
+  void robot.offsetWidth;
+  robot.classList.add("robot-arrive");
+  setTimeout(() => {
+    robot.classList.remove("robot-arrive");
+    robot.classList.add("robot-idle");
+  }, 400);
 }
-
-window.addEventListener("resize", () => positionRobot(currentLevel));
 
 // ══════════════════════════════════════════════════════
 //  LEVEL DISPLAY
