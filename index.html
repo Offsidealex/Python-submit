@@ -993,6 +993,15 @@ function handleFocusLost() {
   if (!currentExercise || cheatBlocked) return;
   tabSwitchCount++;
   saveCheatState(currentExercise.id, tabSwitchCount);
+  // Enregistrer immédiatement côté serveur — résistant aux modifications DevTools
+  fetch(`${API_URL}/cheat-event`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      student_name: studentName, class_id: studentClass,
+      exercise_id: currentExercise.id
+    })
+  }).catch(() => {});
   if (tabSwitchCount === 1) {
     showCheatWarning();
   } else if (tabSwitchCount >= 2) {

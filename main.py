@@ -75,6 +75,17 @@ def init_db():
         cur.execute("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS tab_switches INTEGER DEFAULT 0")
     except Exception:
         pass
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS cheat_events (
+            id SERIAL PRIMARY KEY,
+            student_name TEXT NOT NULL,
+            class_id TEXT NOT NULL,
+            exercise_id INTEGER NOT NULL,
+            count INTEGER NOT NULL DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (student_name, class_id, exercise_id)
+        )
+    """)
     conn.commit()
     cur.close()
     conn.close()
@@ -173,6 +184,11 @@ class SubmissionCreate(BaseModel):
     test_results: List[dict] = []
     tab_switches: int = 0
 
+class CheatEvent(BaseModel):
+    student_name: str
+    class_id: str
+    exercise_id: int
+
 class GradeUpdate(BaseModel):
     grade: Optional[float] = None
 
@@ -236,6 +252,23 @@ def delete_exercise(exercise_id: int, auth=Depends(check_teacher)):
     cur.execute("DELETE FROM exercises WHERE id=%s", (exercise_id,))
     conn.commit(); cur.close(); conn.close()
     return {"message": "Exercice supprimé"}
+
+
+@app.post("/cheat-event", status_code=201)
+def report_cheat_event(ev: CheatEvent):
+    """Enregistre un changement de page côté serveur — résistant aux modifications DevTools."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO cheat_events (student_name, class_id, exercise_id, count)
+        VALUES (%s, %s, %s, 1)
+        ON CONFLICT (student_name, class_id, exercise_id)
+        DO UPDATE SET count = cheat_events.count + 1, updated_at = CURRENT_TIMESTAMP
+        RETURNING count
+    """, (ev.student_name, ev.class_id, ev.exercise_id))
+    count = cur.fetchone()[0]
+    conn.commit(); cur.close(); conn.close()
+    return {"count": count}
 
 
 @app.post("/submit", status_code=201)
@@ -354,7 +387,8 @@ def _run_auto_grade(submission_id: int):
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
-        SELECT s.code, s.output, s.tab_switches, e.title, e.description
+        SELECT s.code, s.output, s.tab_switches, s.student_name, s.class_id, s.exercise_id,
+               e.title, e.description
         FROM submissions s
         JOIN exercises e ON s.exercise_id = e.id
         WHERE s.id = %s
@@ -364,7 +398,13 @@ def _run_auto_grade(submission_id: int):
         cur.close(); conn.close()
         raise ValueError("Soumission introuvable")
 
-    tab_switches = row.get("tab_switches") or 0
+    # Utiliser le compte serveur (résistant aux modifications DevTools)
+    cur.execute(
+        "SELECT count FROM cheat_events WHERE student_name=%s AND class_id=%s AND exercise_id=%s",
+        (row["student_name"], row["class_id"], row["exercise_id"])
+    )
+    cheat_row = cur.fetchone()
+    tab_switches = cheat_row["count"] if cheat_row else (row.get("tab_switches") or 0)
 
     # Si l'élève a changé de page 2 fois ou plus, note 0 directement sans appel IA
     if tab_switches >= 2:
