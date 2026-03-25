@@ -259,6 +259,7 @@ let studentClass = "";
 let allExercises = [];
 let tabSwitchCount = 0;
 let cheatBlocked = false;
+let ignoreNextBlur = false;
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 function tryRestoreSession() {
@@ -683,7 +684,7 @@ document.getElementById("exercise-select").addEventListener("change", async (e) 
 
 // ─── Exécution ────────────────────────────────────────────────────────────────
 document.getElementById("run-btn").addEventListener("click", async () => {
-  if (!pyodide) return alert("Python se charge encore, patientez…");
+  if (!pyodide) { ignoreNextBlur = true; return alert("Python se charge encore, patientez…"); }
   document.getElementById("output-section").classList.add("hidden");
   document.getElementById("output-box").textContent = "";
   const code = monacoEditor.getValue();
@@ -701,7 +702,7 @@ document.getElementById("run-btn").addEventListener("click", async () => {
 });
 
 document.getElementById("run-with-inputs-btn").addEventListener("click", async () => {
-  if (!pyodide) return alert("Python se charge encore, patientez…");
+  if (!pyodide) { ignoreNextBlur = true; return alert("Python se charge encore, patientez…"); }
   const code = monacoEditor.getValue();
   const raw = document.getElementById("input-values").value;
   const inputs = raw.split("\n").map(s => s.trimEnd());
@@ -717,8 +718,8 @@ document.getElementById("run-with-inputs-btn").addEventListener("click", async (
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 document.getElementById("test-btn").addEventListener("click", async () => {
-  if (!pyodide) return alert("Python se charge encore…");
-  if (!currentExercise) return alert("Sélectionnez un exercice.");
+  if (!pyodide) { ignoreNextBlur = true; return alert("Python se charge encore…"); }
+  if (!currentExercise) { ignoreNextBlur = true; return alert("Sélectionnez un exercice."); }
   const testCases = currentExercise.test_cases || [];
   lastTestResults = [];
   let passed = 0;
@@ -775,6 +776,7 @@ document.getElementById("submit-btn").addEventListener("click", async () => {
 });
 
 document.getElementById("clear-btn").addEventListener("click", () => {
+  ignoreNextBlur = true;
   if (confirm("Effacer le code ?")) monacoEditor.setValue("");
 });
 
@@ -1063,6 +1065,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 window.addEventListener("blur", () => {
+  if (ignoreNextBlur) { ignoreNextBlur = false; return; }
   if (!currentExercise || cheatBlocked) return;
   // Ne compter que si la page est restée visible (fenêtre côte à côte)
   if (!document.hidden) handleFocusLost();
