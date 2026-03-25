@@ -499,11 +499,21 @@ function viewSubmission(id) {
 
 async function deleteSubmission(id) {
   if (!confirm("Supprimer cette soumission ?")) return;
-  await fetch(`${API_URL}/submissions/${id}`, {
+  const res = await fetch(`${API_URL}/submissions/${id}`, {
     method: "DELETE",
     headers: { "x-teacher-password": teacherPassword }
   });
-  loadSubmissions();
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    return alert("Erreur lors de la suppression : " + (err.detail || res.status));
+  }
+  // Rafraîchir l'onglet actif
+  const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab;
+  if (activeTab === "tp") {
+    document.getElementById("load-tp-btn").click();
+  } else {
+    await loadSubmissions();
+  }
 }
 
 // ─── Exercices ────────────────────────────────────────────────────────────────
