@@ -13,9 +13,9 @@
       background: #0f1f0f;
       border: 2px solid #1e3a1e;
       border-radius: 14px;
-      padding: 20px 24px;
+      padding: 80px 24px 20px;
       position: relative;
-      overflow: hidden;
+      overflow: visible;
     }
     #circuit-board::before {
       content: '';
@@ -75,6 +75,33 @@
       100% { background: transparent; }
     }
     .flash { animation: flash-success 0.7s ease; }
+
+    /* ── ROBPY Robot ── */
+    #robpy-robot {
+      position: absolute;
+      top: 0; left: 0;
+      transition: transform 0.6s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 10;
+      pointer-events: none;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+    }
+    @keyframes robot-idle {
+      0%,100% { transform: translateY(0px); }
+      50%      { transform: translateY(-4px); }
+    }
+    @keyframes robot-walk {
+      0%,100% { transform: rotate(-4deg); }
+      50%      { transform: rotate(4deg); }
+    }
+    @keyframes robot-celebrate {
+      0%   { transform: translateY(0) rotate(0deg) scale(1); }
+      25%  { transform: translateY(-10px) rotate(-8deg) scale(1.1); }
+      75%  { transform: translateY(-10px) rotate(8deg) scale(1.1); }
+      100% { transform: translateY(0) rotate(0deg) scale(1); }
+    }
+    .robot-idle     { animation: robot-idle 2s ease-in-out infinite; }
+    .robot-walk     { animation: robot-walk 0.3s ease-in-out infinite; }
+    .robot-celebrate{ animation: robot-celebrate 0.5s ease-in-out 3; }
 
     /* ── Editor ── */
     #editor-container { height: 260px; border-radius: 8px; overflow: hidden; border: 1px solid #d1d5db; }
@@ -181,6 +208,42 @@
   <section id="circuit-board">
     <div class="text-green-600 text-xs font-mono mb-3 opacity-70 relative z-1">// CIRCUIT BOARD — ROBPY v1.0 — en cours de réparation...</div>
     <div id="board-nodes" class="relative z-1"></div>
+
+    <!-- Robot SVG -->
+    <svg id="robpy-robot" class="robot-idle" viewBox="0 0 46 62" width="46" height="62">
+      <!-- Antenne -->
+      <rect x="21" y="0" width="4" height="10" rx="2" fill="#fbbf24"/>
+      <circle cx="23" cy="1" r="5" fill="#fbbf24"/>
+      <circle cx="23" cy="1" r="2.5" fill="#fef3c7"/>
+      <!-- Tête -->
+      <rect x="4" y="10" width="38" height="24" rx="8" fill="#60a5fa"/>
+      <rect x="4" y="10" width="38" height="24" rx="8" fill="none" stroke="#2563eb" stroke-width="2"/>
+      <!-- Yeux -->
+      <circle cx="15" cy="21" r="6" fill="white"/>
+      <circle cx="31" cy="21" r="6" fill="white"/>
+      <circle cx="16" cy="21" r="3.5" fill="#1e40af"/>
+      <circle cx="32" cy="21" r="3.5" fill="#1e40af"/>
+      <circle cx="17" cy="20" r="1.3" fill="white"/>
+      <circle cx="33" cy="20" r="1.3" fill="white"/>
+      <!-- Bouche -->
+      <path d="M15 29 Q23 34 31 29" stroke="#1e40af" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <!-- Cou -->
+      <rect x="18" y="34" width="10" height="6" rx="3" fill="#3b82f6"/>
+      <!-- Corps -->
+      <rect x="2" y="40" width="42" height="22" rx="8" fill="#2563eb"/>
+      <rect x="2" y="40" width="42" height="22" rx="8" fill="none" stroke="#1d4ed8" stroke-width="2"/>
+      <!-- Panneau de contrôle -->
+      <rect x="9" y="45" width="28" height="12" rx="4" fill="#bfdbfe"/>
+      <circle id="rlight1" cx="16" cy="51" r="3.5" fill="#22c55e"/>
+      <circle id="rlight2" cx="23" cy="51" r="3.5" fill="#fbbf24"/>
+      <circle id="rlight3" cx="30" cy="51" r="3.5" fill="#f87171"/>
+      <!-- Bras gauche -->
+      <rect x="-5" y="41" width="7" height="16" rx="3.5" fill="#3b82f6" stroke="#2563eb" stroke-width="1.5"/>
+      <ellipse cx="-2" cy="58" rx="4" ry="3" fill="#2563eb"/>
+      <!-- Bras droit -->
+      <rect x="44" y="41" width="7" height="16" rx="3.5" fill="#3b82f6" stroke="#2563eb" stroke-width="1.5"/>
+      <ellipse cx="48" cy="58" rx="4" ry="3" fill="#2563eb"/>
+    </svg>
   </section>
 
   <!-- Level + Editor -->
@@ -421,6 +484,7 @@ function renderBoard() {
     const cls = done ? "done" : active ? "active" : "locked";
     const div = document.createElement("div");
     div.className = `comp ${cls}`;
+    div.id = `comp-${idx}`;
     div.title = lv.component;
     div.innerHTML = `<span class="icon">${done ? "✅" : lv.icon}</span><span class="name" style="color:${done?"#4ade80":active?"#fcd34d":"#3a5a3a"}">${lv.component}</span>`;
     return div;
@@ -454,6 +518,24 @@ function renderBoard() {
     if (i < 4) r2.appendChild(makeTrace());
   });
   container.appendChild(r2);
+
+  // Position robot after DOM update
+  requestAnimationFrame(() => positionRobot(currentLevel));
+}
+
+function positionRobot(idx) {
+  const robot = document.getElementById("robpy-robot");
+  const board = document.getElementById("circuit-board");
+  const comp  = document.getElementById(`comp-${idx}`);
+  if (!robot || !board || !comp) return;
+
+  const boardRect = board.getBoundingClientRect();
+  const compRect  = comp.getBoundingClientRect();
+
+  const x = (compRect.left - boardRect.left) + compRect.width / 2 - 23; // center robot (width=46)
+  const y = (compRect.top  - boardRect.top)  - 68; // 68px above component
+
+  robot.style.transform = `translate(${x}px, ${y}px)`;
 }
 
 // ══════════════════════════════════════════════════════
@@ -622,6 +704,12 @@ document.getElementById("run-btn").addEventListener("click", async () => {
     saveProgress();
     spawnConfetti();
 
+    // Robot celebrate
+    const robot = document.getElementById("robpy-robot");
+    robot.classList.remove("robot-idle", "robot-walk");
+    robot.classList.add("robot-celebrate");
+    setTimeout(() => { robot.classList.remove("robot-celebrate"); robot.classList.add("robot-idle"); }, 1600);
+
     document.getElementById("success-msg").textContent = lv.success;
     document.getElementById("success-box").classList.remove("hidden");
     document.getElementById("error-box").classList.add("hidden");
@@ -654,6 +742,14 @@ document.getElementById("next-btn").addEventListener("click", () => {
   if (currentLevel < LEVELS.length - 1) {
     currentLevel++;
     saveProgress();
+    // Robot walks to next component
+    const robot = document.getElementById("robpy-robot");
+    robot.classList.remove("robot-idle", "robot-celebrate");
+    robot.classList.add("robot-walk");
+    setTimeout(() => {
+      robot.classList.remove("robot-walk");
+      robot.classList.add("robot-idle");
+    }, 700);
     showLevel(currentLevel);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
