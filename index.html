@@ -989,19 +989,27 @@ function loadCheatState(exId) {
   return parseInt(localStorage.getItem(cheatKey(exId)) || "0");
 }
 
+function handleFocusLost() {
+  if (!currentExercise || cheatBlocked) return;
+  tabSwitchCount++;
+  saveCheatState(currentExercise.id, tabSwitchCount);
+  if (tabSwitchCount === 1) {
+    showCheatWarning();
+  } else if (tabSwitchCount >= 2) {
+    cheatBlocked = true;
+    showCheatBlock();
+  }
+}
+
 document.addEventListener("visibilitychange", () => {
   if (!currentExercise || cheatBlocked) return;
-  if (document.hidden) {
-    tabSwitchCount++;
-    saveCheatState(currentExercise.id, tabSwitchCount);
-  } else {
-    if (tabSwitchCount === 1) {
-      showCheatWarning();
-    } else if (tabSwitchCount >= 2) {
-      cheatBlocked = true;
-      showCheatBlock();
-    }
-  }
+  if (document.hidden) handleFocusLost();
+});
+
+window.addEventListener("blur", () => {
+  if (!currentExercise || cheatBlocked) return;
+  // Ne compter que si la page est restée visible (fenêtre côte à côte)
+  if (!document.hidden) handleFocusLost();
 });
 
 function showCheatWarning() {
