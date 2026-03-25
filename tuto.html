@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ROBPY – Répare le circuit !</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+
+    /* ── Circuit Board ── */
+    #circuit-board {
+      background: #0f1f0f;
+      border: 2px solid #1e3a1e;
+      border-radius: 14px;
+      padding: 20px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    #circuit-board::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, #1a2e1a 1px, transparent 1px);
+      background-size: 20px 20px;
+      opacity: 0.4;
+    }
+
+    .board-row { display: flex; align-items: center; position: relative; z-index: 1; }
+    .board-row.reverse { flex-direction: row-reverse; }
+
+    .trace { height: 4px; flex: 1; background: linear-gradient(90deg, #92400e, #b45309); border-radius: 2px; min-width: 8px; }
+    .trace-v {
+      width: 4px; height: 28px;
+      background: linear-gradient(180deg, #92400e, #b45309);
+      border-radius: 2px;
+      margin-left: auto; margin-right: 28px;
+    }
+
+    .comp {
+      width: 68px; height: 68px;
+      border-radius: 10px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      cursor: default;
+      transition: all 0.4s;
+      border: 2px solid transparent;
+      flex-shrink: 0;
+    }
+    .comp .icon { font-size: 22px; line-height: 1; }
+    .comp .name { font-size: 9px; font-weight: 600; margin-top: 3px; text-align: center; letter-spacing: 0.02em; }
+
+    .comp.locked   { background: #1a2a1a; border-color: #2a3a2a; opacity: 0.45; }
+    .comp.locked .name { color: #4a6a4a; }
+
+    .comp.active {
+      background: #2d1f00; border-color: #f59e0b;
+      box-shadow: 0 0 16px rgba(245,158,11,0.6);
+      animation: pulse-amber 1.8s ease-in-out infinite;
+    }
+    .comp.active .name { color: #fcd34d; }
+
+    .comp.done {
+      background: #0a2a0a; border-color: #22c55e;
+      box-shadow: 0 0 14px rgba(34,197,94,0.45);
+    }
+    .comp.done .name { color: #4ade80; }
+
+    @keyframes pulse-amber {
+      0%,100% { box-shadow: 0 0 16px rgba(245,158,11,0.5); }
+      50%      { box-shadow: 0 0 28px rgba(245,158,11,0.9); }
+    }
+    @keyframes flash-success {
+      0%   { background: rgba(34,197,94,0.25); }
+      100% { background: transparent; }
+    }
+    .flash { animation: flash-success 0.7s ease; }
+
+    /* ── Editor ── */
+    #editor-container { height: 260px; border-radius: 8px; overflow: hidden; border: 1px solid #d1d5db; }
+
+    #output-box {
+      background: #0f172a; color: #34d399;
+      font-family: 'Courier New', monospace; font-size: 13px;
+      padding: 12px; border-radius: 8px;
+      min-height: 72px; max-height: 180px;
+      white-space: pre-wrap; overflow-y: auto;
+    }
+    #output-box.error { color: #f87171; }
+
+    /* ── Misc ── */
+    .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700;
+             padding: 2px 10px; border-radius: 999px; }
+    .badge-level  { background: #dcfce7; color: #15803d; }
+    .badge-concept{ background: #dbeafe; color: #1d4ed8; }
+
+    .story-box {
+      background: #f0fdf4; border-left: 4px solid #22c55e;
+      border-radius: 0 8px 8px 0; padding: 12px 14px;
+    }
+
+    /* Confetti */
+    .confetti-piece {
+      position: fixed; width: 10px; height: 10px; border-radius: 2px;
+      animation: confetti-fall 1.4s ease-in forwards;
+      pointer-events: none; z-index: 9999;
+    }
+    @keyframes confetti-fall {
+      0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* Completion screen */
+    #completion-screen {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    #completion-screen.show { display: flex; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<!-- ══ Login ══ -->
+<div id="login-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-50">
+  <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center space-y-5">
+    <div class="text-7xl animate-bounce">🤖</div>
+    <h1 class="text-2xl font-extrabold text-gray-800">ROBPY</h1>
+    <p class="text-gray-500 text-sm">Un circuit est en panne ! Aide ROBPY à le réparer en apprenant Python, une commande à la fois.</p>
+    <input id="login-name" type="text" placeholder="Ton prénom et nom"
+      class="w-full border-2 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
+    <button id="login-btn"
+      class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold text-sm transition">
+      🚀 Démarrer la mission !
+    </button>
+    <a href="index.html" class="block text-xs text-gray-400 hover:text-gray-600">← Retour à la plateforme</a>
+  </div>
+</div>
+
+<!-- ══ Completion screen ══ -->
+<div id="completion-screen">
+  <div class="bg-white rounded-2xl shadow-2xl p-10 text-center max-w-md space-y-4">
+    <div class="text-6xl">🏆</div>
+    <h2 class="text-2xl font-extrabold text-green-700">Circuit entièrement réparé !</h2>
+    <p class="text-gray-600">ROBPY a réussi sa mission. Tu maîtrises les bases de Python — bravo !</p>
+    <a href="index.html"
+      class="inline-block mt-2 bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl font-bold transition">
+      Aller aux exercices →
+    </a>
+  </div>
+</div>
+
+<!-- ══ Header ══ -->
+<header class="bg-gray-900 text-white px-5 py-3 flex items-center justify-between sticky top-0 z-10 shadow">
+  <div class="flex items-center gap-3">
+    <span class="text-2xl">🤖</span>
+    <div>
+      <h1 class="font-extrabold text-green-400 leading-tight">ROBPY</h1>
+      <p class="text-xs text-gray-500">Répare le circuit</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-6">
+    <span id="student-display" class="text-sm text-gray-300 hidden"></span>
+    <div class="text-right">
+      <div class="text-xs text-gray-500">Composants réparés</div>
+      <div class="font-bold text-green-400 text-sm" id="progress-text">0 / 10</div>
+    </div>
+    <div class="w-28 bg-gray-700 rounded-full h-2">
+      <div id="progress-bar" class="bg-green-500 h-2 rounded-full transition-all" style="width:0%"></div>
+    </div>
+    <a href="index.html" class="text-xs text-gray-400 hover:text-white transition">← Plateforme</a>
+  </div>
+</header>
+
+<!-- ══ Main ══ -->
+<main class="max-w-7xl mx-auto px-4 py-5 space-y-5">
+
+  <!-- Circuit Board -->
+  <section id="circuit-board">
+    <div class="text-green-600 text-xs font-mono mb-3 opacity-70 relative z-1">// CIRCUIT BOARD — ROBPY v1.0 — en cours de réparation...</div>
+    <div id="board-nodes" class="relative z-1"></div>
+  </section>
+
+  <!-- Level + Editor -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+    <!-- Level info -->
+    <section class="bg-white rounded-2xl shadow p-6 space-y-4">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="badge badge-level" id="level-badge">Niveau 1</span>
+        <span class="badge badge-concept" id="concept-badge">print()</span>
+        <h2 class="font-bold text-gray-800" id="level-title"></h2>
+      </div>
+
+      <div class="story-box">
+        <p class="text-sm text-gray-700 leading-relaxed" id="level-story"></p>
+      </div>
+
+      <div>
+        <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">🎯 Objectif</div>
+        <p class="text-sm text-gray-700" id="level-objective"></p>
+      </div>
+
+      <div id="expected-box" class="hidden">
+        <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">📋 Sortie attendue</div>
+        <pre class="bg-gray-900 text-green-400 text-xs rounded-lg p-3 font-mono" id="expected-output"></pre>
+      </div>
+
+      <div id="hint-box" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3">
+        <p class="text-xs font-bold text-amber-600 mb-1">💡 Indice</p>
+        <code class="text-sm text-amber-800 font-mono" id="hint-text"></code>
+      </div>
+      <button id="hint-btn" class="text-xs text-gray-400 hover:text-amber-500 transition underline">💡 Afficher un indice</button>
+
+      <div id="success-box" class="hidden bg-green-50 border-2 border-green-300 rounded-xl p-4 space-y-3">
+        <p class="text-sm font-semibold text-green-700" id="success-msg"></p>
+        <button id="next-btn"
+          class="bg-green-600 hover:bg-green-700 text-white text-sm px-5 py-2 rounded-xl font-bold transition">
+          Niveau suivant →
+        </button>
+      </div>
+
+      <div id="error-box" class="hidden bg-red-50 border border-red-200 rounded-xl p-3">
+        <p class="text-xs font-bold text-red-600 mb-1">❌ Pas tout à fait...</p>
+        <p class="text-sm text-red-700" id="error-msg"></p>
+      </div>
+
+      <div id="pyodide-status" class="text-xs text-gray-400 flex items-center gap-1">
+        <span class="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
+        Chargement de Python…
+      </div>
+    </section>
+
+    <!-- Editor + Output -->
+    <section class="space-y-4">
+      <div class="bg-white rounded-2xl shadow p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-gray-700 text-sm">✏️ Ton code</h3>
+          <button id="reset-btn" class="text-xs text-gray-400 hover:text-red-500 transition">🗑 Réinitialiser</button>
+        </div>
+        <div id="editor-container"></div>
+        <button id="run-btn"
+          class="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2">
+          <span id="run-label">▶ Exécuter</span>
+        </button>
+      </div>
+      <div class="bg-white rounded-2xl shadow p-4 space-y-2">
+        <h3 class="font-semibold text-gray-700 text-sm">🖥 Sortie de ROBPY</h3>
+        <pre id="output-box">(aucune sortie)</pre>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<!-- Monaco -->
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<!-- Pyodide -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  LEVEL DATA
+// ══════════════════════════════════════════════════════
+const LEVELS = [
+  {
+    id: 1, icon: "📡", component: "Antenne", concept: "print()",
+    title: "Premier signal",
+    story: "ROBPY vient de s'activer mais l'antenne du circuit est muette. Pour démarrer le diagnostic, il doit envoyer un signal d'identification. Utilise print() pour transmettre le message.",
+    objective: "Afficher exactement le message de démarrage.",
+    expected: "Circuit en ligne",
+    hint: 'print("Circuit en ligne")',
+    starter: '# ROBPY s\'initialise...\n# Envoie le signal de démarrage !\n\n',
+    validate: o => o.trim() === "Circuit en ligne",
+    success: "✅ Signal transmis ! L'antenne est réparée.",
+  },
+  {
+    id: 2, icon: "🔍", component: "Capteur", concept: "Variables",
+    title: "Identifier les composants",
+    story: "Le capteur de ROBPY détecte deux valeurs dans le circuit : une résistance R = 470 Ω et un courant I = 0,02 A. Déclare ces deux variables et affiche-les.",
+    objective: "Déclarer R = 470 et I = 0.02, afficher chaque valeur sur une ligne.",
+    expected: "470\n0.02",
+    hint: "R = 470\nI = 0.02\nprint(R)\nprint(I)",
+    starter: '# Déclare les variables\nR = \nI = \n# Affiche-les\n',
+    validate: o => o.includes("470") && o.includes("0.02"),
+    success: "✅ Composants identifiés ! Le capteur est opérationnel.",
+  },
+  {
+    id: 3, icon: "⚡", component: "Voltmètre", concept: "Calcul",
+    title: "Mesurer la tension",
+    story: "Le voltmètre est en panne — il ne calcule plus rien. ROBPY doit appliquer la loi d'Ohm pour mesurer la tension : U = R × I. Calcule et affiche U.",
+    objective: "Avec R = 470 et I = 0.02, calculer U = R * I et afficher le résultat.",
+    expected: "9.4",
+    hint: "U = R * I\nprint(U)",
+    starter: 'R = 470\nI = 0.02\nU = \nprint(U)\n',
+    validate: o => o.includes("9.4"),
+    success: "✅ Tension mesurée : 9,4 V ! Le voltmètre est calibré.",
+  },
+  {
+    id: 4, icon: "🖥", component: "Écran", concept: "f-string",
+    title: "Rapport formaté",
+    story: "L'écran de contrôle affiche des données illisibles. ROBPY doit formater le rapport de tension avec une f-string pour que l'opérateur comprenne.",
+    objective: 'Afficher exactement : Tension U = 9.4 V',
+    expected: "Tension U = 9.4 V",
+    hint: 'print(f"Tension U = {U} V")',
+    starter: 'R = 470\nI = 0.02\nU = R * I\nprint(f"Tension U = ...")\n',
+    validate: o => o.trim() === "Tension U = 9.4 V",
+    success: "✅ Rapport lisible ! L'écran de contrôle est réparé.",
+  },
+  {
+    id: 5, icon: "💡", component: "LED", concept: "if / else",
+    title: "Vérifier la LED",
+    story: "La LED de signalisation ne réagit plus. Elle doit s'allumer si U > 5 V, rester éteinte sinon. ROBPY doit programmer cette décision avec if/else.",
+    objective: 'Si U = 9.4 > 5 → afficher "LED allumée", sinon "LED éteinte".',
+    expected: "LED allumée",
+    hint: "if U > 5:\n    print(\"LED allumée\")\nelse:\n    print(\"LED éteinte\")",
+    starter: 'U = 9.4\nif U > 5:\n    \nelse:\n    \n',
+    validate: o => o.trim() === "LED allumée",
+    success: "✅ LED vérifiée ! Le voyant de signalisation s'allume.",
+  },
+  {
+    id: 6, icon: "🔧", component: "Régulateur", concept: "if / elif / else",
+    title: "Classer la tension",
+    story: "Le régulateur de tension doit classifier le signal en 3 zones : faible, nominale ou élevée. ROBPY utilise if/elif/else pour prendre la bonne décision.",
+    objective: "U < 4.5 → faible | 4.5 ≤ U ≤ 5.5 → nominale | U > 5.5 → élevée.\nAvec U = 5.0, afficher \"Tension nominale\".",
+    expected: "Tension nominale",
+    hint: "if U < 4.5:\n    print(\"Tension faible\")\nelif U <= 5.5:\n    print(\"Tension nominale\")\nelse:\n    print(\"Tension élevée\")",
+    starter: 'U = 5.0\nif U < 4.5:\n    print("Tension faible")\nelif :\n    \nelse:\n    \n',
+    validate: o => o.trim() === "Tension nominale",
+    success: "✅ Tension classifiée ! Le régulateur est recalibré.",
+  },
+  {
+    id: 7, icon: "🔎", component: "Scanner", concept: "Boucle for",
+    title: "Scanner les résistances",
+    story: "Le scanner de ROBPY doit vérifier 5 résistances numérotées R1 à R5. Plutôt que de répéter 5 fois le même code, utilise une boucle for !",
+    objective: "Avec range(1, 6), afficher R1 OK, R2 OK, ..., R5 OK.",
+    expected: "R1 OK\nR2 OK\nR3 OK\nR4 OK\nR5 OK",
+    hint: "for i in range(1, 6):\n    print(f\"R{i} OK\")",
+    starter: 'for i in range(1, 6):\n    print()\n',
+    validate: o => {
+      const lines = o.trim().split('\n');
+      return lines.length === 5 && lines.every((l, i) => l.trim() === `R${i+1} OK`);
+    },
+    success: "✅ 5 résistances vérifiées ! Le scanner est opérationnel.",
+  },
+  {
+    id: 8, icon: "⚙️", component: "Disjoncteur", concept: "Boucle while",
+    title: "Réduire la surtension",
+    story: "ALERTE ! Une surtension de 100 V met le circuit en danger. À chaque cycle de sécurité, ROBPY divise U par 2. Combien de cycles pour descendre sous 1 V ?",
+    objective: "Partir de U = 100, diviser par 2 avec while jusqu'à U < 1. Afficher le nombre de cycles.",
+    expected: "7",
+    hint: "U = 100\nn = 0\nwhile U >= 1:\n    U /= 2\n    n += 1\nprint(n)",
+    starter: 'U = 100\nn = 0\nwhile U >= 1:\n    U /= 2\n    n += 1\nprint(n)\n',
+    validate: o => o.trim() === "7",
+    success: "✅ Surtension réduite en 7 cycles ! Le disjoncteur est réarmé.",
+  },
+  {
+    id: 9, icon: "💻", component: "Processeur", concept: "Fonctions",
+    title: "Fonction de calcul",
+    story: "ROBPY doit programmer le processeur avec une fonction réutilisable. Plutôt de recalculer U à la main à chaque fois, crée une fonction tension(R, I) qui retourne R × I.",
+    objective: "Définir def tension(R, I) avec return, puis afficher tension(470, 0.02).",
+    expected: "9.4",
+    hint: "def tension(R, I):\n    return R * I\n\nprint(tension(470, 0.02))",
+    starter: 'def tension(R, I):\n    return \n\nprint(tension(470, 0.02))\n',
+    validate: o => o.includes("9.4"),
+    success: "✅ Processeur programmé ! La fonction est compilée et opérationnelle.",
+  },
+  {
+    id: 10, icon: "🏆", component: "Tableau de bord", concept: "Synthèse",
+    title: "Circuit réparé !",
+    story: "Dernier composant ! ROBPY doit générer le rapport final complet du circuit : résistance, courant, tension et puissance. Utilise une fonction et une f-string.",
+    objective: "Afficher exactement : Bilan : R=470 Ω, I=0.02 A, U=9.4 V, P=0.188 W",
+    expected: "Bilan : R=470 Ω, I=0.02 A, U=9.4 V, P=0.188 W",
+    hint: 'R=470; I=0.02; U=R*I; P=round(U*I,3)\nprint(f"Bilan : R={R} Ω, I={I} A, U={U} V, P={P} W")',
+    starter: 'R = 470\nI = 0.02\nU = R * I\nP = round(U * I, 3)\nprint(f"Bilan : ...")\n',
+    validate: o => o.includes("R=470") && o.includes("U=9.4") && o.includes("P=0.188"),
+    success: "🎉 Circuit entièrement réparé ! Mission accomplie, ROBPY est fier de toi !",
+  },
+];
+
+// ══════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════
+let studentName = "";
+let currentLevel = 0; // 0-indexed
+let completedLevels = new Set();
+let pyodide = null;
+let editor = null;
+let pyReady = false;
+
+function storageKey() { return `robpy_${studentName}`; }
+
+function saveProgress() {
+  localStorage.setItem(storageKey(), JSON.stringify([...completedLevels]));
+  localStorage.setItem(`robpy_level_${studentName}`, currentLevel);
+}
+
+function loadProgress() {
+  const saved = localStorage.getItem(storageKey());
+  if (saved) completedLevels = new Set(JSON.parse(saved));
+  const lvl = localStorage.getItem(`robpy_level_${studentName}`);
+  if (lvl !== null) currentLevel = parseInt(lvl);
+}
+
+// ══════════════════════════════════════════════════════
+//  CIRCUIT BOARD
+// ══════════════════════════════════════════════════════
+function renderBoard() {
+  const container = document.getElementById("board-nodes");
+  container.innerHTML = "";
+
+  const row1 = LEVELS.slice(0, 5);
+  const row2 = LEVELS.slice(5, 10);
+
+  function makeComp(lv, idx) {
+    const done = completedLevels.has(idx);
+    const active = idx === currentLevel && !done;
+    const locked = idx > currentLevel && !done;
+    const cls = done ? "done" : active ? "active" : "locked";
+    const div = document.createElement("div");
+    div.className = `comp ${cls}`;
+    div.title = lv.component;
+    div.innerHTML = `<span class="icon">${done ? "✅" : lv.icon}</span><span class="name" style="color:${done?"#4ade80":active?"#fcd34d":"#3a5a3a"}">${lv.component}</span>`;
+    return div;
+  }
+
+  function makeTrace() {
+    const t = document.createElement("div");
+    t.className = "trace";
+    return t;
+  }
+
+  // Row 1: left → right
+  const r1 = document.createElement("div");
+  r1.className = "board-row";
+  row1.forEach((lv, i) => {
+    r1.appendChild(makeComp(lv, i));
+    if (i < 4) r1.appendChild(makeTrace());
+  });
+  container.appendChild(r1);
+
+  // Vertical connector on the right
+  const vc = document.createElement("div");
+  vc.className = "trace-v";
+  container.appendChild(vc);
+
+  // Row 2: right → left
+  const r2 = document.createElement("div");
+  r2.className = "board-row reverse";
+  row2.forEach((lv, i) => {
+    r2.appendChild(makeComp(lv, i + 5));
+    if (i < 4) r2.appendChild(makeTrace());
+  });
+  container.appendChild(r2);
+}
+
+// ══════════════════════════════════════════════════════
+//  LEVEL DISPLAY
+// ══════════════════════════════════════════════════════
+function showLevel(idx) {
+  const lv = LEVELS[idx];
+  document.getElementById("level-badge").textContent = `Niveau ${lv.id}`;
+  document.getElementById("concept-badge").textContent = lv.concept;
+  document.getElementById("level-title").textContent = lv.title;
+  document.getElementById("level-story").textContent = lv.story;
+  document.getElementById("level-objective").textContent = lv.objective;
+
+  const expBox = document.getElementById("expected-box");
+  if (lv.expected) {
+    expBox.classList.remove("hidden");
+    document.getElementById("expected-output").textContent = lv.expected;
+  } else {
+    expBox.classList.add("hidden");
+  }
+
+  document.getElementById("hint-box").classList.add("hidden");
+  document.getElementById("success-box").classList.add("hidden");
+  document.getElementById("error-box").classList.add("hidden");
+  document.getElementById("output-box").textContent = "(aucune sortie)";
+  document.getElementById("output-box").className = "";
+
+  if (editor) {
+    if (completedLevels.has(idx)) {
+      editor.setValue(`# Niveau ${lv.id} déjà complété ✅\n`);
+      editor.updateOptions({ readOnly: true });
+    } else {
+      editor.setValue(lv.starter);
+      editor.updateOptions({ readOnly: false });
+    }
+  }
+
+  updateProgress();
+  renderBoard();
+}
+
+function updateProgress() {
+  const done = completedLevels.size;
+  document.getElementById("progress-text").textContent = `${done} / 10`;
+  document.getElementById("progress-bar").style.width = `${done * 10}%`;
+}
+
+// ══════════════════════════════════════════════════════
+//  PYODIDE
+// ══════════════════════════════════════════════════════
+async function initPyodide() {
+  pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/" });
+  pyReady = true;
+  const st = document.getElementById("pyodide-status");
+  st.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-green-400"></span> Python prêt !';
+  document.getElementById("run-btn").disabled = false;
+}
+
+async function runCode(code) {
+  const wrapped = `
+import sys, builtins
+from io import StringIO
+sys.stdout = StringIO()
+_err = ""
+try:
+    exec(${JSON.stringify(code)})
+except Exception as e:
+    _err = str(e)
+_out = sys.stdout.getvalue()
+sys.stdout = sys.__stdout__
+(_out, _err)
+`;
+  try {
+    const result = await pyodide.runPythonAsync(wrapped);
+    return [result.get(0) || "", result.get(1) || ""];
+  } catch(e) {
+    return ["", String(e)];
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  CONFETTI
+// ══════════════════════════════════════════════════════
+function spawnConfetti() {
+  const colors = ["#22c55e","#f59e0b","#3b82f6","#ec4899","#a855f7"];
+  for (let i = 0; i < 40; i++) {
+    const el = document.createElement("div");
+    el.className = "confetti-piece";
+    el.style.left = Math.random() * 100 + "vw";
+    el.style.top = "-20px";
+    el.style.background = colors[Math.floor(Math.random() * colors.length)];
+    el.style.animationDelay = Math.random() * 0.6 + "s";
+    el.style.width = (8 + Math.random() * 8) + "px";
+    el.style.height = (8 + Math.random() * 8) + "px";
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2000);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  LOGIN
+// ══════════════════════════════════════════════════════
+document.getElementById("login-btn").addEventListener("click", () => {
+  const name = document.getElementById("login-name").value.trim();
+  if (!name) return;
+  studentName = name;
+  document.getElementById("student-display").textContent = `👤 ${name}`;
+  document.getElementById("student-display").classList.remove("hidden");
+  loadProgress();
+  document.getElementById("login-overlay").style.display = "none";
+  showLevel(currentLevel);
+});
+
+document.getElementById("login-name").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("login-btn").click();
+});
+
+// ══════════════════════════════════════════════════════
+//  MONACO
+// ══════════════════════════════════════════════════════
+require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs" } });
+require(["vs/editor/editor.main"], () => {
+  editor = monaco.editor.create(document.getElementById("editor-container"), {
+    value: LEVELS[0].starter,
+    language: "python",
+    theme: "vs-light",
+    fontSize: 14,
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    lineNumbers: "on",
+    automaticLayout: true,
+    tabSize: 4,
+    wordWrap: "on",
+  });
+});
+
+// ══════════════════════════════════════════════════════
+//  BUTTONS
+// ══════════════════════════════════════════════════════
+document.getElementById("run-btn").addEventListener("click", async () => {
+  if (!pyReady) return;
+  if (completedLevels.has(currentLevel)) return;
+  const btn = document.getElementById("run-btn");
+  const label = document.getElementById("run-label");
+  btn.disabled = true;
+  label.textContent = "⏳ Exécution…";
+
+  const code = editor.getValue();
+  const [output, err] = await runCode(code);
+  const outBox = document.getElementById("output-box");
+
+  if (err) {
+    outBox.textContent = "ERREUR : " + err;
+    outBox.className = "error";
+    showError("Ton code contient une erreur Python.");
+    btn.disabled = false; label.textContent = "▶ Exécuter"; return;
+  }
+
+  outBox.textContent = output || "(aucune sortie)";
+  outBox.className = "";
+
+  const lv = LEVELS[currentLevel];
+  if (lv.validate(output)) {
+    // Success !
+    completedLevels.add(currentLevel);
+    saveProgress();
+    spawnConfetti();
+
+    document.getElementById("success-msg").textContent = lv.success;
+    document.getElementById("success-box").classList.remove("hidden");
+    document.getElementById("error-box").classList.add("hidden");
+    document.getElementById("hint-box").classList.add("hidden");
+    document.getElementById("next-btn").classList.toggle("hidden", currentLevel >= LEVELS.length - 1);
+    document.body.classList.add("flash");
+    setTimeout(() => document.body.classList.remove("flash"), 700);
+
+    editor.updateOptions({ readOnly: true });
+    renderBoard();
+    updateProgress();
+
+    if (currentLevel >= LEVELS.length - 1) {
+      setTimeout(() => document.getElementById("completion-screen").classList.add("show"), 1500);
+    }
+  } else {
+    showError("La sortie ne correspond pas encore à l'objectif. Vérifie l'orthographe et les espaces !");
+  }
+
+  btn.disabled = false; label.textContent = "▶ Exécuter";
+});
+
+function showError(msg) {
+  document.getElementById("error-msg").textContent = msg;
+  document.getElementById("error-box").classList.remove("hidden");
+  document.getElementById("success-box").classList.add("hidden");
+}
+
+document.getElementById("next-btn").addEventListener("click", () => {
+  if (currentLevel < LEVELS.length - 1) {
+    currentLevel++;
+    saveProgress();
+    showLevel(currentLevel);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+});
+
+document.getElementById("hint-btn").addEventListener("click", () => {
+  document.getElementById("hint-text").textContent = LEVELS[currentLevel].hint;
+  document.getElementById("hint-box").classList.remove("hidden");
+  document.getElementById("hint-btn").classList.add("hidden");
+});
+
+document.getElementById("reset-btn").addEventListener("click", () => {
+  if (completedLevels.has(currentLevel)) return;
+  if (confirm("Réinitialiser le code de ce niveau ?")) {
+    editor.setValue(LEVELS[currentLevel].starter);
+    document.getElementById("hint-box").classList.add("hidden");
+    document.getElementById("hint-btn").classList.remove("hidden");
+    document.getElementById("error-box").classList.add("hidden");
+  }
+});
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+document.getElementById("run-btn").disabled = true;
+initPyodide();
+renderBoard();
+</script>
+</body>
+</html>
