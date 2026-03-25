@@ -111,6 +111,125 @@ def init_db():
 
 def seed_exercises():
     exercises = [
+        # ── TP1 : Variables et types de données (contexte : loi d'Ohm) ──
+        {
+            "title": "TP1 - Q1",
+            "description": (
+                "Contexte : loi d'Ohm — U = R × I\n\n"
+                "Déclarer R = 470 et I = 0.02, calculer la tension U = R * I et l'afficher.\n"
+                "Vérifier que U = 9.4 V.\n\n"
+                "Exemple de sortie attendue :\n"
+                "Tension U = 9.4 V"
+            ),
+        },
+        {
+            "title": "TP1 - Q2",
+            "description": (
+                "Utiliser type() pour afficher le type de R, I et d'une variable nom = \"Résistance\".\n\n"
+                "Exemple de sortie attendue :\n"
+                "<class 'int'>\n"
+                "<class 'float'>\n"
+                "<class 'str'>"
+            ),
+        },
+        {
+            "title": "TP1 - Q3",
+            "description": (
+                "Demander R et I à l'utilisateur avec input(), les convertir en float().\n"
+                "Recalculer et afficher U = R * I.\n\n"
+                "Entrées à fournir (dans l'ordre) : valeur de R, valeur de I.\n\n"
+                "Exemple avec R=470 et I=0.02 :\n"
+                "Tension U = 9.4 V"
+            ),
+        },
+        {
+            "title": "TP1 - Q4",
+            "description": (
+                "Avec R = 470 et I = 0.02, calculer la puissance P = U * I (où U = R * I).\n"
+                "Afficher P arrondi à 4 décimales avec round() et l'unité watts.\n\n"
+                "Exemple de sortie attendue :\n"
+                "Puissance P = 0.1881 watts"
+            ),
+        },
+        {
+            "title": "TP1 - Q5",
+            "description": (
+                "Avec R = 470, I = 0.02, U = R * I et P = U * I, afficher un résumé complet avec une f-string :\n\n"
+                "Exemple de sortie attendue :\n"
+                "R = 470 Ω | I = 0.02 A | U = 9.4 V | P = 0.188 W"
+            ),
+        },
+        # ── TP2 : Structures conditionnelles (contexte : seuils de tension) ──
+        {
+            "title": "TP2 - Q1",
+            "description": (
+                "Contexte : seuils de tension dans un circuit électronique\n\n"
+                "Une LED est passante si U > 2.0 V.\n"
+                "Demander U à l'utilisateur et afficher \"LED allumée\" ou \"LED éteinte\".\n\n"
+                "Entrée à fournir : valeur de U en volts.\n\n"
+                "Exemple avec U=3.0 :\n"
+                "LED allumée\n\n"
+                "Exemple avec U=1.5 :\n"
+                "LED éteinte"
+            ),
+        },
+        {
+            "title": "TP2 - Q2",
+            "description": (
+                "Classifier la tension de sortie d'un régulateur en 3 zones avec if/elif/else :\n"
+                "- faible si U < 4.5 V\n"
+                "- nominale si 4.5 <= U <= 5.5 V\n"
+                "- élevée si U > 5.5 V\n\n"
+                "Demander U à l'utilisateur.\n\n"
+                "Entrée à fournir : valeur de U en volts.\n\n"
+                "Exemple avec U=5.0 :\n"
+                "Tension nominale\n\n"
+                "Exemple avec U=6.0 :\n"
+                "Tension élevée"
+            ),
+        },
+        {
+            "title": "TP2 - Q3",
+            "description": (
+                "Un système se déclenche si U > 12 V ET I > 2 A (utiliser and).\n"
+                "Tester 3 combinaisons en déclarant les valeurs directement dans le code (pas d'input) :\n"
+                "- U=15, I=3 → déclenchement\n"
+                "- U=10, I=3 → pas de déclenchement\n"
+                "- U=15, I=1 → pas de déclenchement\n\n"
+                "Exemple de sortie attendue :\n"
+                "U=15 I=3 : Système déclenché\n"
+                "U=10 I=3 : Système non déclenché\n"
+                "U=15 I=1 : Système non déclenché"
+            ),
+        },
+        {
+            "title": "TP2 - Q4",
+            "description": (
+                "Afficher la table de vérité d'une porte AND pour A, B dans {0, 1} "
+                "avec deux boucles for imbriquées.\n\n"
+                "Exemple de sortie attendue :\n"
+                "A=0 B=0 : 0\n"
+                "A=0 B=1 : 0\n"
+                "A=1 B=0 : 0\n"
+                "A=1 B=1 : 1"
+            ),
+        },
+        {
+            "title": "TP2 - Q5",
+            "description": (
+                "Un thermostat :\n"
+                "- coupe le chauffage si T > 22°C → afficher \"Chauffage coupé\"\n"
+                "- allume le chauffage si T < 18°C → afficher \"Chauffage allumé\"\n"
+                "- affiche \"Maintien\" sinon\n\n"
+                "Demander T à l'utilisateur.\n\n"
+                "Entrée à fournir : valeur de T en °C.\n\n"
+                "Exemple avec T=25 :\n"
+                "Chauffage coupé\n\n"
+                "Exemple avec T=20 :\n"
+                "Maintien"
+            ),
+        },
+        # ── TP3 : Boucles for et while ──
         {
             "title": "TP3 - Q1",
             "description": (
@@ -223,7 +342,7 @@ class ClassCodeCreate(BaseModel):
 def list_exercises():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT id, title, description, deadline, created_at FROM exercises ORDER BY id ASC")
+    cur.execute("SELECT id, title, description, deadline, created_at FROM exercises ORDER BY title ASC")
     rows = cur.fetchall()
     cur.close(); conn.close()
     return [dict(r) for r in rows]
