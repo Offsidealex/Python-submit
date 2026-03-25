@@ -1022,7 +1022,7 @@ async function showCheatBlock() {
   const el = document.getElementById("cheat-warning-box");
   if (el) {
     el.className = "rounded-xl p-4 text-sm font-medium bg-red-50 text-red-800 border border-red-400";
-    el.innerHTML = `🚫 <b>Soumission bloquée !</b> Vous avez changé de page une 2e fois. Votre note pour cet exercice est <b>0/2</b>. Vous ne pouvez plus soumettre.`;
+    el.innerHTML = `🚫 <b>Soumission bloquée !</b> Vous avez changé de page une 2e fois. Votre note pour cet exercice est <b>0/2</b>. Soumission automatique en cours…`;
     el.classList.remove("hidden");
     el.scrollIntoView({ behavior: "smooth" });
   }
@@ -1032,6 +1032,28 @@ async function showCheatBlock() {
   submitBtn.textContent = "🚫 Soumission bloquée";
   submitBtn.classList.remove("bg-blue-700", "hover:bg-blue-800");
   submitBtn.classList.add("bg-red-500", "cursor-not-allowed");
+
+  // Soumettre automatiquement avec note 0 pour débloquer la progression
+  if (currentExercise) {
+    try {
+      const code = monacoEditor ? monacoEditor.getValue().trim() : "";
+      await fetch(`${API_URL}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          student_name: studentName, class_id: studentClass,
+          exercise_id: currentExercise.id, code,
+          output: lastOutput, test_results: lastTestResults,
+          tab_switches: tabSwitchCount,
+        }),
+      });
+      markTileSubmitted(currentExercise.id);
+      loadExercises();
+      if (el) el.innerHTML = `🚫 <b>Soumission bloquée !</b> Vous avez changé de page une 2e fois. Votre note pour cet exercice est <b>0/2</b>. Vous pouvez passer à l'exercice suivant.`;
+    } catch(e) {
+      console.error("Erreur soumission automatique anti-triche :", e);
+    }
+  }
 }
 
 function resetCheat() {
@@ -1040,6 +1062,13 @@ function resetCheat() {
   document.body.classList.remove("cheat-warn", "cheat-block");
   const el = document.getElementById("cheat-warning-box");
   if (el) el.classList.add("hidden");
+  const submitBtn = document.getElementById("submit-btn");
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "📤 Soumettre";
+    submitBtn.classList.remove("bg-red-500", "bg-gray-400", "cursor-not-allowed", "hover:bg-gray-400");
+    submitBtn.classList.add("bg-blue-700", "hover:bg-blue-800");
+  }
 }
 
 function formatDate(iso) {
