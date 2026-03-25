@@ -519,8 +519,8 @@ function renderBoard() {
   });
   container.appendChild(r2);
 
-  // Position robot after DOM update
-  requestAnimationFrame(() => positionRobot(currentLevel));
+  // Position robot — délai pour laisser le navigateur finir le layout flexbox
+  setTimeout(() => positionRobot(currentLevel), 80);
 }
 
 function positionRobot(idx) {
@@ -532,11 +532,13 @@ function positionRobot(idx) {
   const boardRect = board.getBoundingClientRect();
   const compRect  = comp.getBoundingClientRect();
 
-  const x = (compRect.left - boardRect.left) + compRect.width / 2 - 23; // center robot (width=46)
-  const y = (compRect.top  - boardRect.top)  - 68; // 68px above component
+  const x = (compRect.left - boardRect.left) + compRect.width / 2 - 23;
+  const y = (compRect.top  - boardRect.top)  - 68;
 
   robot.style.transform = `translate(${x}px, ${y}px)`;
 }
+
+window.addEventListener("resize", () => positionRobot(currentLevel));
 
 // ══════════════════════════════════════════════════════
 //  LEVEL DISPLAY
@@ -574,7 +576,7 @@ function showLevel(idx) {
   }
 
   updateProgress();
-  renderBoard();
+  renderBoard(); // renderBoard appelle positionRobot via setTimeout
 }
 
 function updateProgress() {
