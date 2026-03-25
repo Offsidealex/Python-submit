@@ -75,6 +75,24 @@ def init_db():
         cur.execute("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS tab_switches INTEGER DEFAULT 0")
     except Exception:
         pass
+    # Mise à jour TP3-Q4 : remplacer la devinette (input) par lancer de dés
+    try:
+        cur.execute("""
+            UPDATE exercises SET description=%s
+            WHERE title='TP3 - Q4' AND description LIKE '%devinette%'
+        """, (
+            "Simuler un jeu de dés avec une boucle while.\n"
+            "À chaque tour, lancer deux dés (utiliser random.randint(1, 6)) et afficher les valeurs obtenues.\n"
+            "S'arrêter dès qu'un double est obtenu (les deux dés ont la même valeur).\n"
+            "Afficher le nombre de lancers nécessaires.\n\n"
+            "Exemple de sortie :\n"
+            "Lancer 1 : dé1=3, dé2=5\n"
+            "Lancer 2 : dé1=2, dé2=6\n"
+            "Lancer 3 : dé1=4, dé2=4 → DOUBLE !\n"
+            "Double obtenu en 3 lancers.",
+        ))
+    except Exception:
+        pass
     cur.execute("""
         CREATE TABLE IF NOT EXISTS cheat_events (
             id SERIAL PRIMARY KEY,
@@ -122,10 +140,15 @@ def seed_exercises():
         {
             "title": "TP3 - Q4",
             "description": (
-                "Programme de devinette : l'ordinateur choisit un nombre aléatoire entre 1 et 100 "
-                "(utiliser random.randint).\n"
-                "L'utilisateur propose des nombres jusqu'à trouver le bon.\n"
-                "Afficher le nombre de tentatives à la fin."
+                "Simuler un jeu de dés avec une boucle while.\n"
+                "À chaque tour, lancer deux dés (utiliser random.randint(1, 6)) et afficher les valeurs obtenues.\n"
+                "S'arrêter dès qu'un double est obtenu (les deux dés ont la même valeur).\n"
+                "Afficher le nombre de lancers nécessaires.\n\n"
+                "Exemple de sortie :\n"
+                "Lancer 1 : dé1=3, dé2=5\n"
+                "Lancer 2 : dé1=2, dé2=6\n"
+                "Lancer 3 : dé1=4, dé2=4 → DOUBLE !\n"
+                "Double obtenu en 3 lancers."
             ),
         },
         {
