@@ -150,6 +150,19 @@
         </div>
       </section>
 
+      <!-- Collecteur d'entrées (input) -->
+      <section id="input-collector" class="bg-white rounded-xl shadow p-6 space-y-3 hidden">
+        <h2 class="text-lg font-semibold text-gray-800">⌨️ Entrées du programme</h2>
+        <p class="text-sm text-gray-600">Votre programme utilise <code class="bg-gray-100 px-1 rounded">input()</code>. Saisissez vos réponses ci-dessous <strong>(une par ligne, dans l'ordre)</strong>, puis cliquez sur Lancer.</p>
+        <textarea id="input-values" rows="4"
+          class="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-green-500 focus:outline-none"
+          placeholder="Ex :&#10;50&#10;75&#10;62"></textarea>
+        <button id="run-with-inputs-btn"
+          class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition">
+          ▶ Lancer
+        </button>
+      </section>
+
       <!-- Output -->
       <section id="output-section" class="bg-white rounded-xl shadow p-6 space-y-3 hidden">
         <h2 class="text-lg font-semibold text-gray-800">🖥 Sortie du programme</h2>
@@ -609,6 +622,8 @@ document.getElementById("exercise-select").addEventListener("change", async (e) 
   document.getElementById("output-section").classList.add("hidden");
   document.getElementById("test-section").classList.add("hidden");
   document.getElementById("submit-msg").classList.add("hidden");
+  document.getElementById("input-collector").classList.add("hidden");
+  document.getElementById("input-values").value = "";
 
   try {
     const [exRes, subsRes] = await Promise.all([
@@ -667,12 +682,35 @@ document.getElementById("exercise-select").addEventListener("change", async (e) 
 // ─── Exécution ────────────────────────────────────────────────────────────────
 document.getElementById("run-btn").addEventListener("click", async () => {
   if (!pyodide) return alert("Python se charge encore, patientez…");
-  // Vider la console avant chaque nouvelle exécution
   document.getElementById("output-section").classList.add("hidden");
   document.getElementById("output-box").textContent = "";
-  const [output, err] = await runCode(monacoEditor.getValue(), [], true); // mode interactif
+  const code = monacoEditor.getValue();
+  if (/\binput\s*\(/.test(code)) {
+    // Code avec input() → afficher le collecteur d'entrées
+    document.getElementById("input-collector").classList.remove("hidden");
+    document.getElementById("input-values").focus();
+  } else {
+    // Pas d'input() → exécution directe
+    document.getElementById("input-collector").classList.add("hidden");
+    const [output, err] = await runCode(code, [], true);
+    lastOutput = output + (err ? "\n--- ERREUR ---\n" + err : "");
+    showOutput(lastOutput);
+  }
+});
+
+document.getElementById("run-with-inputs-btn").addEventListener("click", async () => {
+  if (!pyodide) return alert("Python se charge encore, patientez…");
+  const code = monacoEditor.getValue();
+  const raw = document.getElementById("input-values").value;
+  const inputs = raw.split("\n").map(s => s.trimEnd());
+  document.getElementById("output-section").classList.add("hidden");
+  document.getElementById("output-box").textContent = "";
+  const btn = document.getElementById("run-with-inputs-btn");
+  btn.textContent = "⏳ Exécution…"; btn.disabled = true;
+  const [output, err] = await runCode(code, inputs, false, true); // echoInputs=true
   lastOutput = output + (err ? "\n--- ERREUR ---\n" + err : "");
   showOutput(lastOutput);
+  btn.textContent = "▶ Lancer"; btn.disabled = false;
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -746,6 +784,8 @@ document.getElementById("back-to-tp-btn").addEventListener("click", () => {
   document.getElementById("output-section").classList.add("hidden");
   document.getElementById("test-section").classList.add("hidden");
   document.getElementById("submit-msg").classList.add("hidden");
+  document.getElementById("input-collector").classList.add("hidden");
+  document.getElementById("input-values").value = "";
   const sel = document.getElementById("exercise-select");
   sel.value = "";
   currentExercise = null;
@@ -886,7 +926,7 @@ function viewMySubmission(id) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-async function runCode(code, inputs, interactive = false) {
+async function runCode(code, inputs, interactive = false, echoInputs = false) {
   let wrappedCode;
 
   if (interactive) {
@@ -921,6 +961,8 @@ sys.stdout = sys.__stdout__
 `;
   } else {
     // Mode tests/soumission : inputs prédéfinis, sortie capturée
+    const echo = echoInputs ? "sys.stdout.write((prompt or '') + str(v) + '\\n')" : "pass";
+    const echoEmpty = echoInputs ? "sys.stdout.write((prompt or '') + '\\n')" : "pass";
     wrappedCode = `
 import sys, builtins
 from io import StringIO
@@ -933,7 +975,10 @@ def _mock_input(prompt=""):
         raise RuntimeError("⚠ Boucle infinie détectée : trop d'appels à input(). Vérifiez votre boucle while.")
     global _idx
     if _idx < len(_inputs):
-        v = _inputs[_idx]; _idx += 1; return v
+        v = _inputs[_idx]; _idx += 1
+        ${echo}
+        return v
+    ${echoEmpty}
     return ""
 builtins.input = _mock_input
 sys.stdout = StringIO()
