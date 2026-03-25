@@ -571,8 +571,12 @@ function showLevel(idx) {
 
   if (editor) {
     if (completedLevels.has(idx)) {
-      editor.setValue(`# Niveau ${lv.id} déjà complété ✅\n`);
+      editor.setValue(lv.starter);
       editor.updateOptions({ readOnly: true });
+      // Afficher la boîte de succès avec bouton pour continuer
+      document.getElementById("success-msg").textContent = lv.success;
+      document.getElementById("success-box").classList.remove("hidden");
+      document.getElementById("next-btn").classList.toggle("hidden", idx >= LEVELS.length - 1);
     } else {
       editor.setValue(lv.starter);
       editor.updateOptions({ readOnly: false });
