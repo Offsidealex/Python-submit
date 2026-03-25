@@ -520,7 +520,19 @@ function renderBoard() {
   container.appendChild(r2);
 
   // Position robot — délai pour laisser le navigateur finir le layout flexbox
-  setTimeout(() => positionRobot(currentLevel), 80);
+  setTimeout(() => positionRobot(currentLevel), 150);
+}
+
+function getOffsetRelTo(el, ancestor) {
+  // Traverse offsetParent chain to get position relative to a specific ancestor
+  let x = 0, y = 0;
+  let cur = el;
+  while (cur && cur !== ancestor) {
+    x += cur.offsetLeft;
+    y += cur.offsetTop;
+    cur = cur.offsetParent;
+  }
+  return { x, y };
 }
 
 function positionRobot(idx) {
@@ -529,11 +541,9 @@ function positionRobot(idx) {
   const comp  = document.getElementById(`comp-${idx}`);
   if (!robot || !board || !comp) return;
 
-  const boardRect = board.getBoundingClientRect();
-  const compRect  = comp.getBoundingClientRect();
-
-  const x = (compRect.left - boardRect.left) + compRect.width / 2 - 23;
-  const y = (compRect.top  - boardRect.top)  - 68;
+  const pos = getOffsetRelTo(comp, board);
+  const x = pos.x + comp.offsetWidth  / 2 - 23; // centrer (robot width=46)
+  const y = pos.y - 72;                           // 72px au-dessus du composant
 
   robot.style.transform = `translate(${x}px, ${y}px)`;
 }
