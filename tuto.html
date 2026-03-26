@@ -38,6 +38,7 @@
     }
 
     .comp {
+      position: relative;
       width: 68px; height: 68px;
       border-radius: 10px;
       display: flex; flex-direction: column;
@@ -475,6 +476,9 @@ function loadProgress() {
 // ══════════════════════════════════════════════════════
 function renderBoard() {
   const container = document.getElementById("board-nodes");
+  // Rescue robot before clearing (it may have been moved inside board-nodes by positionRobot)
+  const robot = document.getElementById("robpy-robot");
+  if (robot) document.getElementById("circuit-board").appendChild(robot);
   container.innerHTML = "";
 
   const row1 = LEVELS.slice(0, 5);
@@ -740,11 +744,13 @@ document.getElementById("run-btn").addEventListener("click", async () => {
     setTimeout(() => { robot.classList.remove("robot-celebrate"); robot.classList.add("robot-idle"); }, 1600);
 
     document.getElementById("success-msg").textContent = lv.success;
-    document.getElementById("success-box").classList.remove("hidden");
+    const sbox = document.getElementById("success-box");
+    sbox.classList.remove("hidden");
     document.getElementById("error-box").classList.add("hidden");
     document.getElementById("hint-box").classList.add("hidden");
     document.getElementById("next-btn").classList.toggle("hidden", currentLevel >= LEVELS.length - 1);
     document.body.classList.add("flash");
+    setTimeout(() => sbox.scrollIntoView({ behavior: "smooth", block: "center" }), 200);
     setTimeout(() => document.body.classList.remove("flash"), 700);
 
     editor.updateOptions({ readOnly: true });
@@ -773,12 +779,14 @@ document.getElementById("next-btn").addEventListener("click", () => {
     saveProgress();
     // Robot walks to next component
     const robot = document.getElementById("robpy-robot");
-    robot.classList.remove("robot-idle", "robot-celebrate");
-    robot.classList.add("robot-walk");
-    setTimeout(() => {
-      robot.classList.remove("robot-walk");
-      robot.classList.add("robot-idle");
-    }, 700);
+    if (robot) {
+      robot.classList.remove("robot-idle", "robot-celebrate");
+      robot.classList.add("robot-walk");
+      setTimeout(() => {
+        robot.classList.remove("robot-walk");
+        robot.classList.add("robot-idle");
+      }, 700);
+    }
     showLevel(currentLevel);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
