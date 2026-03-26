@@ -85,7 +85,7 @@
     /* ── Components ── */
     .comp {
       position: relative;
-      width: 80px; height: 72px;
+      width: 108px; height: 96px;
       border-radius: 4px;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
@@ -95,8 +95,8 @@
       flex-shrink: 0;
       overflow: visible;
     }
-    .comp .icon { font-size: 24px; line-height: 1; }
-    .comp .name { font-size: 9px; font-weight: 700; margin-top: 4px; text-align: center;
+    .comp .icon { font-size: 30px; line-height: 1; }
+    .comp .name { font-size: 10px; font-weight: 700; margin-top: 5px; text-align: center;
                   letter-spacing: 0.05em; font-family: 'Courier New', monospace; }
     /* Pin-1 notch (silkscreen IC indicator) */
     .comp::before {
@@ -578,7 +578,7 @@ function renderBoard() {
 
   // Grille 3 colonnes : [compGauche | connecteur central | compDroite]
   const grid = document.createElement("div");
-  grid.style.cssText = "display:grid; grid-template-columns:80px 36px 80px; position:relative; z-index:1;";
+  grid.style.cssText = "display:grid; grid-template-columns:108px 44px 108px; position:relative; z-index:1;";
 
   for (let row = 0; row < 5; row++) {
     const li = row;     // 0,1,2,3,4
