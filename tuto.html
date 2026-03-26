@@ -569,10 +569,16 @@ function showLevel(idx) {
   document.getElementById("output-box").textContent = "(aucune sortie)";
   document.getElementById("output-box").className = "";
 
+  const runBtn = document.getElementById("run-btn");
+  const runLabel = document.getElementById("run-label");
   if (editor) {
     if (completedLevels.has(idx)) {
       editor.setValue(lv.starter);
       editor.updateOptions({ readOnly: true });
+      runBtn.disabled = true;
+      runLabel.textContent = "✅ Déjà complété";
+      runBtn.classList.replace("bg-green-600", "bg-gray-400");
+      runBtn.classList.replace("hover:bg-green-700", "hover:bg-gray-400");
       // Afficher la boîte de succès avec bouton pour continuer
       document.getElementById("success-msg").textContent = lv.success;
       document.getElementById("success-box").classList.remove("hidden");
@@ -580,6 +586,10 @@ function showLevel(idx) {
     } else {
       editor.setValue(lv.starter);
       editor.updateOptions({ readOnly: false });
+      runBtn.disabled = false;
+      runLabel.textContent = "▶ Exécuter";
+      runBtn.classList.replace("bg-gray-400", "bg-green-600");
+      runBtn.classList.replace("hover:bg-gray-400", "hover:bg-green-700");
     }
   }
 
