@@ -13,7 +13,7 @@
       background: #0f1f0f;
       border: 2px solid #1e3a1e;
       border-radius: 14px;
-      padding: 20px 24px;
+      padding: 32px 36px 28px;
       position: relative;
       overflow: visible;
     }
@@ -29,29 +29,28 @@
     .board-row { display: flex; align-items: center; position: relative; z-index: 1; }
     .board-row.reverse { flex-direction: row-reverse; }
 
-    .trace { height: 4px; flex: 1; background: linear-gradient(90deg, #92400e, #b45309); border-radius: 2px; min-width: 8px; }
+    .trace { height: 6px; flex: 1; background: linear-gradient(90deg, #92400e, #b45309); border-radius: 3px; min-width: 16px; }
     .trace-v {
-      width: 4px; height: 28px;
+      width: 6px; height: 44px;
       background: linear-gradient(180deg, #92400e, #b45309);
-      border-radius: 2px;
-      margin-left: auto; margin-right: 28px;
+      border-radius: 3px;
+      margin-left: auto; margin-right: 42px;
     }
 
     .comp {
       position: relative;
-      width: 68px; height: 68px;
-      border-radius: 10px;
+      width: 90px; height: 90px;
+      border-radius: 12px;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       cursor: default;
       transition: all 0.4s;
       border: 2px solid transparent;
       flex-shrink: 0;
-      position: relative;
       overflow: visible;
     }
-    .comp .icon { font-size: 22px; line-height: 1; }
-    .comp .name { font-size: 9px; font-weight: 600; margin-top: 3px; text-align: center; letter-spacing: 0.02em; }
+    .comp .icon { font-size: 30px; line-height: 1; }
+    .comp .name { font-size: 10px; font-weight: 600; margin-top: 5px; text-align: center; letter-spacing: 0.02em; }
 
     .comp.locked   { background: #1a2a1a; border-color: #2a3a2a; opacity: 0.45; }
     .comp.locked .name { color: #4a6a4a; }
@@ -82,26 +81,25 @@
     /* ── ROBPY Robot ── */
     #robpy-robot {
       position: absolute;
-      bottom: calc(100% + 6px);
-      left: 50%;
-      transform: translateX(-50%);
       z-index: 20;
       pointer-events: none;
       filter: drop-shadow(0 4px 10px rgba(0,0,0,0.7));
+      /* smooth glide between components */
+      transition: left 0.7s cubic-bezier(0.4,0,0.2,1), top 0.7s cubic-bezier(0.4,0,0.2,1);
     }
     @keyframes robot-idle {
-      0%,100% { transform: translateX(-50%) translateY(0px); }
-      50%      { transform: translateX(-50%) translateY(-5px); }
+      0%,100% { transform: translateY(0px); }
+      50%      { transform: translateY(-6px); }
     }
     @keyframes robot-arrive {
-      0%   { opacity: 0; transform: translateX(-50%) translateY(-16px); }
-      100% { opacity: 1; transform: translateX(-50%) translateY(0px); }
+      0%   { opacity: 0; transform: translateY(-18px); }
+      100% { opacity: 1; transform: translateY(0px); }
     }
     @keyframes robot-celebrate {
-      0%   { transform: translateX(-50%) translateY(0) rotate(0deg) scale(1); }
-      25%  { transform: translateX(-50%) translateY(-12px) rotate(-10deg) scale(1.15); }
-      75%  { transform: translateX(-50%) translateY(-12px) rotate(10deg) scale(1.15); }
-      100% { transform: translateX(-50%) translateY(0) rotate(0deg) scale(1); }
+      0%   { transform: translateY(0) rotate(0deg) scale(1); }
+      25%  { transform: translateY(-14px) rotate(-12deg) scale(1.2); }
+      75%  { transform: translateY(-14px) rotate(12deg) scale(1.2); }
+      100% { transform: translateY(0) rotate(0deg) scale(1); }
     }
     .robot-idle     { animation: robot-idle 2s ease-in-out infinite; }
     .robot-arrive   { animation: robot-arrive 0.4s ease forwards; }
@@ -456,6 +454,7 @@ let completedLevels = new Set();
 let pyodide = null;
 let editor = null;
 let pyReady = false;
+let robot_placed = false; // premier placement = pas de transition
 
 function storageKey() { return `robpy_${studentName}`; }
 
@@ -476,9 +475,6 @@ function loadProgress() {
 // ══════════════════════════════════════════════════════
 function renderBoard() {
   const container = document.getElementById("board-nodes");
-  // Rescue robot before clearing (it may have been moved inside board-nodes by positionRobot)
-  const robot = document.getElementById("robpy-robot");
-  if (robot) document.getElementById("circuit-board").appendChild(robot);
   container.innerHTML = "";
 
   const row1 = LEVELS.slice(0, 5);
@@ -535,26 +531,49 @@ function renderBoard() {
   });
   container.appendChild(r2);
 
-  setTimeout(() => positionRobot(currentLevel), 100);
+  setTimeout(() => positionRobot(currentLevel, robot_placed), 100);
 }
 
-function positionRobot(idx) {
+function positionRobot(idx, animate = true) {
   const robot = document.getElementById("robpy-robot");
   const comp  = document.getElementById(`comp-${idx}`);
-  if (!robot || !comp) return;
+  const board = document.getElementById("circuit-board");
+  if (!robot || !comp || !board) return;
 
-  // Déplacer le robot dans le composant actif — zéro calcul de coordonnées
+  // Robot reste toujours dans #circuit-board (jamais dans board-nodes)
+  if (robot.parentElement !== board) board.appendChild(robot);
+
+  // Calcul de la position cible via getBoundingClientRect
+  const boardRect = board.getBoundingClientRect();
+  const compRect  = comp.getBoundingClientRect();
+  const bl = parseFloat(getComputedStyle(board).borderLeftWidth) || 0;
+  const bt = parseFloat(getComputedStyle(board).borderTopWidth)  || 0;
+  const rw = 46, rh = 62;
+
+  const targetLeft = (compRect.left - boardRect.left - bl) + (compRect.width  / 2) - (rw / 2);
+  const targetTop  = (compRect.top  - boardRect.top  - bt) - rh - 8;
+
   robot.style.display = "";
-  robot.classList.remove("robot-idle", "robot-celebrate", "robot-arrive");
-  comp.appendChild(robot);
 
-  // Forcer le reflow pour relancer l'animation
-  void robot.offsetWidth;
-  robot.classList.add("robot-arrive");
-  setTimeout(() => {
-    robot.classList.remove("robot-arrive");
-    robot.classList.add("robot-idle");
-  }, 400);
+  if (!animate) {
+    // Placement immédiat sans transition (premier affichage)
+    robot.style.transition = "none";
+    robot.style.left = targetLeft + "px";
+    robot.style.top  = targetTop  + "px";
+    void robot.offsetWidth; // force reflow
+    robot.style.transition = ""; // restaure la transition CSS
+    robot.classList.remove("robot-idle", "robot-celebrate", "robot-arrive");
+    void robot.offsetWidth;
+    robot.classList.add("robot-arrive");
+    setTimeout(() => { robot.classList.remove("robot-arrive"); robot.classList.add("robot-idle"); }, 450);
+    robot_placed = true;
+  } else {
+    // Glissement animé vers la cible
+    robot.classList.remove("robot-idle", "robot-celebrate", "robot-arrive");
+    robot.style.left = targetLeft + "px";
+    robot.style.top  = targetTop  + "px";
+    setTimeout(() => { robot.classList.add("robot-idle"); }, 750);
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -739,9 +758,11 @@ document.getElementById("run-btn").addEventListener("click", async () => {
 
     // Robot celebrate
     const robot = document.getElementById("robpy-robot");
-    robot.classList.remove("robot-idle", "robot-walk");
-    robot.classList.add("robot-celebrate");
-    setTimeout(() => { robot.classList.remove("robot-celebrate"); robot.classList.add("robot-idle"); }, 1600);
+    if (robot) {
+      robot.classList.remove("robot-idle", "robot-walk");
+      robot.classList.add("robot-celebrate");
+      setTimeout(() => { robot.classList.remove("robot-celebrate"); robot.classList.add("robot-idle"); }, 1600);
+    }
 
     document.getElementById("success-msg").textContent = lv.success;
     const sbox = document.getElementById("success-box");
@@ -777,17 +798,7 @@ document.getElementById("next-btn").addEventListener("click", () => {
   if (currentLevel < LEVELS.length - 1) {
     currentLevel++;
     saveProgress();
-    // Robot walks to next component
-    const robot = document.getElementById("robpy-robot");
-    if (robot) {
-      robot.classList.remove("robot-idle", "robot-celebrate");
-      robot.classList.add("robot-walk");
-      setTimeout(() => {
-        robot.classList.remove("robot-walk");
-        robot.classList.add("robot-idle");
-      }, 700);
-    }
-    showLevel(currentLevel);
+    showLevel(currentLevel); // positionRobot(animate=true) appelé dans renderBoard
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 });
