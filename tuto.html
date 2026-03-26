@@ -488,8 +488,17 @@ function renderBoard() {
     const div = document.createElement("div");
     div.className = `comp ${cls}`;
     div.id = `comp-${idx}`;
-    div.title = lv.component;
+    div.title = locked ? `🔒 ${lv.component}` : lv.component;
     div.innerHTML = `<span class="icon">${done ? "✅" : lv.icon}</span><span class="name" style="color:${done?"#4ade80":active?"#fcd34d":"#3a5a3a"}">${lv.component}</span>`;
+    if (!locked) {
+      div.style.cursor = "pointer";
+      div.addEventListener("click", () => {
+        currentLevel = idx;
+        saveProgress();
+        showLevel(currentLevel);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    }
     return div;
   }
 
