@@ -63,15 +63,16 @@
 
     /* ── PCB Traces ── */
     .trace-v-pcb {
-      width: 6px; height: 24px;
+      width: 6px; height: 32px;
       background: linear-gradient(180deg, #7a5000, #c8880a, #7a5000);
       border-radius: 3px;
       flex-shrink: 0;
     }
     .trace-h-pcb {
-      height: 6px; width: 100%;
+      height: 6px;
       background: linear-gradient(90deg, #7a5000, #c8880a, #7a5000);
       border-radius: 3px;
+      flex-shrink: 0;
     }
     .via-pcb {
       width: 9px; height: 9px;
@@ -85,7 +86,7 @@
     /* ── Components ── */
     .comp {
       position: relative;
-      width: 108px; height: 96px;
+      width: 96px; height: 88px;
       border-radius: 4px;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
@@ -95,7 +96,7 @@
       flex-shrink: 0;
       overflow: visible;
     }
-    .comp .icon { font-size: 30px; line-height: 1; }
+    .comp .icon { font-size: 28px; line-height: 1; }
     .comp .name { font-size: 10px; font-weight: 700; margin-top: 5px; text-align: center;
                   letter-spacing: 0.05em; font-family: 'Courier New', monospace; }
     /* Pin-1 notch (silkscreen IC indicator) */
@@ -262,7 +263,7 @@
 
 <!-- ══ Main ══ -->
 <main class="max-w-7xl mx-auto px-4 py-5">
-<div class="flex gap-5 items-start">
+<div class="grid grid-cols-2 gap-5 items-start">
 
   <!-- Circuit Board PCB (gauche) -->
   <section id="circuit-board">
@@ -540,8 +541,12 @@ function renderBoard() {
   const container = document.getElementById("board-nodes");
   container.innerHTML = "";
 
-  // Serpentine vertical : col gauche 0→4 (haut→bas), col droite 9→5 (haut→bas)
-  // Signal : 0→1→2→3→4 ─(bas)─ 5→6→7→8→9
+  // Serpentine horizontale :
+  //   Ligne 1 →  [0]─[1]─[2]─[3]─[4]
+  //                                  |  (connecteur droit)
+  //   Ligne 2 ←  [9]─[8]─[7]─[6]─[5]
+
+  const CW = 96, TW = 28; // comp width, trace width (fixes la largeur de rangée)
 
   function makeComp(lv, idx) {
     const done   = completedLevels.has(idx);
@@ -566,44 +571,59 @@ function renderBoard() {
     return div;
   }
 
-  function cell(content, style) {
+  function traceH() {
     const d = document.createElement("div");
-    if (style) d.style.cssText = style;
-    if (content) d.appendChild(content);
+    d.className = "trace-h-pcb";
+    d.style.width = TW + "px";
     return d;
   }
-  function traceV() { const d = document.createElement("div"); d.className = "trace-v-pcb"; return d; }
-  function traceH() { const d = document.createElement("div"); d.className = "trace-h-pcb"; return d; }
-  function via()    { const d = document.createElement("div"); d.className = "via-pcb"; return d; }
-
-  // Grille 3 colonnes : [compGauche | connecteur central | compDroite]
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid; grid-template-columns:108px 44px 108px; position:relative; z-index:1;";
-
-  for (let row = 0; row < 5; row++) {
-    const li = row;     // 0,1,2,3,4
-    const ri = 9 - row; // 9,8,7,6,5
-
-    // Ligne composants
-    grid.appendChild(cell(makeComp(LEVELS[li], li), "display:flex;justify-content:center;"));
-
-    // Colonne centrale : trace horizontale en bas seulement (liaison 4→5)
-    const mid = document.createElement("div");
-    mid.style.cssText = "display:flex;align-items:center;justify-content:center;";
-    if (row === 4) mid.appendChild(traceH());
-    grid.appendChild(mid);
-
-    grid.appendChild(cell(makeComp(LEVELS[ri], ri), "display:flex;justify-content:center;"));
-
-    // Ligne traces verticales (pas après la dernière ligne)
-    if (row < 4) {
-      grid.appendChild(cell(traceV(), "display:flex;justify-content:center;padding:2px 0;"));
-      grid.appendChild(cell(via(),    "display:flex;justify-content:center;align-items:center;"));
-      grid.appendChild(cell(traceV(), "display:flex;justify-content:center;padding:2px 0;"));
-    }
+  function traceV() {
+    const d = document.createElement("div");
+    d.className = "trace-v-pcb";
+    return d;
+  }
+  function via() {
+    const d = document.createElement("div");
+    d.className = "via-pcb";
+    return d;
   }
 
-  container.appendChild(grid);
+  // Crée une rangée de composants reliés par des traces
+  function makeRow(indices) {
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex; align-items:center; flex-shrink:0;";
+    indices.forEach((idx, i) => {
+      row.appendChild(makeComp(LEVELS[idx], idx));
+      if (i < indices.length - 1) row.appendChild(traceH());
+    });
+    return row;
+  }
+
+  // Rangée 1 : 0 → 1 → 2 → 3 → 4
+  container.appendChild(makeRow([0, 1, 2, 3, 4]));
+
+  // Connecteur vertical côté droit (entre comp-4 et comp-5)
+  // On crée une ligne de la même largeur que les rangées, avec le via+trace à droite
+  const connLine = document.createElement("div");
+  connLine.style.cssText = "display:flex; align-items:flex-start; flex-shrink:0;";
+  // Spacers pour colonnes 0-3 : chaque colonne = comp + trace
+  for (let i = 0; i < 4; i++) {
+    const sp = document.createElement("div");
+    sp.style.cssText = `width:${CW + TW}px; flex-shrink:0;`;
+    connLine.appendChild(sp);
+  }
+  // Colonne 4 : via + trace + via (centrés sur comp-4 / comp-5)
+  const viaCol = document.createElement("div");
+  viaCol.style.cssText = `width:${CW}px; flex-shrink:0; display:flex; flex-direction:column; align-items:center;`;
+  viaCol.appendChild(via());
+  viaCol.appendChild(traceV());
+  viaCol.appendChild(via());
+  connLine.appendChild(viaCol);
+  container.appendChild(connLine);
+
+  // Rangée 2 : 9 ← 8 ← 7 ← 6 ← 5  (DOM : [9,8,7,6,5] → affiché de gauche à droite)
+  container.appendChild(makeRow([9, 8, 7, 6, 5]));
+
   setTimeout(() => positionRobot(currentLevel, robot_placed), 100);
 }
 
