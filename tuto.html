@@ -13,7 +13,7 @@
       background: #0b1e0c;
       border: 3px solid #c8950a;
       border-radius: 6px;
-      padding: 28px 22px 24px;
+      padding: 44px 14px 14px;
       position: relative;
       overflow: visible;
       flex-shrink: 0;
@@ -272,7 +272,7 @@
     <div class="pcb-hole" style="bottom:7px;left:7px"></div>
     <div class="pcb-hole" style="bottom:7px;right:7px"></div>
     <div class="pcb-silk">ROBPY&#8209;PCB &nbsp;&#x2022;&nbsp; REV&nbsp;1.0</div>
-    <div id="board-nodes" style="position:relative;z-index:1;"></div>
+    <div id="board-nodes" style="position:relative;height:680px;width:100%;"></div>
 
     <!-- Robot SVG (déplacé par JS dans le composant actif) -->
     <svg id="robpy-robot" class="robot-idle" viewBox="0 0 46 62" width="46" height="62" style="display:none">
@@ -535,94 +535,162 @@ function loadProgress() {
 }
 
 // ══════════════════════════════════════════════════════
-//  CIRCUIT BOARD
+//  CIRCUIT BOARD  (positionnement absolu + SVG)
 // ══════════════════════════════════════════════════════
 function renderBoard() {
   const container = document.getElementById("board-nodes");
   container.innerHTML = "";
 
-  // Serpentine horizontale :
-  //   Ligne 1 →  [0]─[1]─[2]─[3]─[4]
-  //                                  |  (connecteur droit)
-  //   Ligne 2 ←  [9]─[8]─[7]─[6]─[5]
+  const CW = 96, CH = 88; // dimensions des composants
 
-  const CW = 96, TW = 28; // comp width, trace width (fixes la largeur de rangée)
+  // Centres des composants [cx, cy] dans board-nodes
+  const POS = [
+    [72,  68],   // 0 Antenne
+    [418, 62],   // 1 Capteur
+    [188, 208],  // 2 Voltmètre
+    [460, 200],  // 3 Écran
+    [72,  355],  // 4 LED
+    [338, 362],  // 5 Régulateur
+    [178, 502],  // 6 Scanner
+    [453, 492],  // 7 Disjoncteur
+    [72,  622],  // 8 Processeur
+    [334, 614],  // 9 Tableau de bord
+  ];
 
-  function makeComp(lv, idx) {
+  // Routes Manhattan connectant les centres (0→1→…→9)
+  const ROUTES = [
+    [[72,68],  [418,68],  [418,62]],
+    [[418,62], [418,165], [188,165], [188,208]],
+    [[188,208],[188,178], [460,178], [460,200]],
+    [[460,200],[460,278], [72,278],  [72,355]],
+    [[72,355], [72,362],  [338,362]],
+    [[338,362],[338,452], [178,452], [178,502]],
+    [[178,502],[178,475], [453,475], [453,492]],
+    [[453,492],[453,596], [72,596],  [72,622]],
+    [[72,622], [334,622], [334,614]],
+  ];
+
+  // Traces décoratives (fond de carte)
+  const DECO = [
+    [[12,132],[58,132],[58,164]],
+    [[518,90],[518,176],[482,176]],
+    [[132,22],[132,54]],
+    [[255,240],[255,328],[308,328]],
+    [[404,260],[508,260],[508,338]],
+    [[28,430],[28,456]],
+    [[504,438],[524,438],[524,548]],
+    [[132,570],[132,648],[200,648]],
+    [[268,670],[268,678]],
+    [[492,572],[512,572],[512,608]],
+    [[382,550],[382,582]],
+    [[298,94],[298,118],[350,118]],
+    [[438,582],[438,662],[388,662]],
+    [[18,552],[18,580],[42,580]],
+    [[250,458],[250,488],[290,488]],
+    [[510,300],[510,330]],
+    [[160,350],[160,380],[120,380]],
+  ];
+
+  // ── SVG (derrière les composants) ──────────────────
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("width","100%"); svg.setAttribute("height","100%");
+  svg.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:0;";
+
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS(NS, tag);
+    for (const [k,v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  }
+  function pts(route) { return route.map(([x,y])=>`${x},${y}`).join(' '); }
+
+  // Traces décoratives (très atténuées)
+  DECO.forEach(r => svg.appendChild(svgEl("polyline",{
+    points: pts(r), stroke:"rgba(200,149,10,0.2)", "stroke-width":"3.5",
+    "stroke-linecap":"round", fill:"none"
+  })));
+
+  // Condensateurs décoratifs (C1 C2 C3)
+  [[305,128],[502,368],[208,675]].forEach(([x,y],i)=>{
+    [-1,1].forEach(s => svg.appendChild(svgEl("rect",{
+      x:x+s*10-7, y:y-5, width:"14", height:"10", rx:"1",
+      fill:"rgba(200,149,10,0.28)"
+    })));
+    const t = svgEl("text",{x, y:y-12,"text-anchor":"middle",
+      "font-family":"monospace","font-size":"8",fill:"rgba(220,210,160,0.38)"});
+    t.textContent=`C${i+1}`; svg.appendChild(t);
+  });
+
+  // Points de test (TP)
+  [[242,112],[530,348],[172,666]].forEach(([x,y],i)=>{
+    svg.appendChild(svgEl("circle",{cx:x,cy:y,r:"5",
+      fill:"rgba(200,149,10,0.32)","stroke":"rgba(200,149,10,0.5)","stroke-width":"1.5"}));
+    const t = svgEl("text",{x:x+8,y:y+4,"font-family":"monospace",
+      "font-size":"7",fill:"rgba(220,210,160,0.32)"});
+    t.textContent=`TP${i+1}`; svg.appendChild(t);
+  });
+
+  // Pastilles de composants (pad SVG sous chaque comp)
+  POS.forEach(([cx,cy],idx)=>{
+    const done=completedLevels.has(idx), active=idx===currentLevel&&!done;
+    svg.appendChild(svgEl("rect",{
+      x:cx-CW/2-5, y:cy-CH/2-5, width:CW+10, height:CH+10, rx:"7",
+      fill: done?"rgba(34,197,94,0.12)":active?"rgba(245,158,11,0.12)":"rgba(200,149,10,0.07)",
+      stroke: done?"rgba(34,197,94,0.35)":active?"rgba(245,158,11,0.35)":"rgba(200,149,10,0.2)",
+      "stroke-width":"1.5"
+    }));
+    // Référence silkscreen (U1, U2…)
+    const t = svgEl("text",{x:cx-CW/2+2, y:cy-CH/2-8,
+      "font-family":"monospace","font-size":"8",fill:"rgba(220,210,160,0.4)"});
+    t.textContent=`U${idx+1}`; svg.appendChild(t);
+  });
+
+  // Traces principales du circuit (colorées selon état)
+  function traceState(i) {
+    if (completedLevels.has(i) && completedLevels.has(i+1)) return "done";
+    if (completedLevels.has(i) && i+1===currentLevel)       return "active";
+    return "locked";
+  }
+  ROUTES.forEach((route,i)=>{
+    const st=traceState(i);
+    const col = st==="done"?"#22c55e": st==="active"?"#f59e0b":"rgba(200,149,10,0.4)";
+    svg.appendChild(svgEl("polyline",{
+      points:pts(route), stroke:col, "stroke-width":"5",
+      "stroke-linecap":"round","stroke-linejoin":"round",fill:"none"
+    }));
+    // Vias aux coudes
+    route.slice(1,-1).forEach(([x,y])=>{
+      svg.appendChild(svgEl("circle",{
+        cx:x,cy:y,r:"5",fill:col,stroke:"#050f07","stroke-width":"1.5"
+      }));
+    });
+  });
+
+  container.appendChild(svg);
+
+  // ── Composants (divs absolus) ──────────────────────
+  LEVELS.forEach((lv, idx) => {
     const done   = completedLevels.has(idx);
     const active = idx === currentLevel && !done;
     const locked = idx > currentLevel && !done;
-    const cls = done ? "done" : active ? "active" : "locked";
+    const cls = done?"done": active?"active":"locked";
     const div = document.createElement("div");
     div.className = `comp ${cls}`;
     div.id = `comp-${idx}`;
     div.title = locked ? `🔒 ${lv.component}` : lv.component;
-    div.innerHTML = `<span class="icon">${done ? "✅" : lv.icon}</span>`
+    div.style.cssText = `position:absolute;left:${POS[idx][0]-CW/2}px;top:${POS[idx][1]-CH/2}px;z-index:1;`;
+    div.innerHTML = `<span class="icon">${done?"✅":lv.icon}</span>`
       + `<span class="name" style="color:${done?"#4ade80":active?"#fcd34d":"#3a5a3a"}">${lv.component}</span>`;
     if (!locked) {
       div.style.cursor = "pointer";
       div.addEventListener("click", () => {
-        currentLevel = idx;
-        saveProgress();
+        currentLevel = idx; saveProgress();
         showLevel(currentLevel);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo({top:0,behavior:"smooth"});
       });
     }
-    return div;
-  }
-
-  function traceH() {
-    const d = document.createElement("div");
-    d.className = "trace-h-pcb";
-    d.style.width = TW + "px";
-    return d;
-  }
-  function traceV() {
-    const d = document.createElement("div");
-    d.className = "trace-v-pcb";
-    return d;
-  }
-  function via() {
-    const d = document.createElement("div");
-    d.className = "via-pcb";
-    return d;
-  }
-
-  // Crée une rangée de composants reliés par des traces
-  function makeRow(indices) {
-    const row = document.createElement("div");
-    row.style.cssText = "display:flex; align-items:center; flex-shrink:0;";
-    indices.forEach((idx, i) => {
-      row.appendChild(makeComp(LEVELS[idx], idx));
-      if (i < indices.length - 1) row.appendChild(traceH());
-    });
-    return row;
-  }
-
-  // Rangée 1 : 0 → 1 → 2 → 3 → 4
-  container.appendChild(makeRow([0, 1, 2, 3, 4]));
-
-  // Connecteur vertical côté droit (entre comp-4 et comp-5)
-  // On crée une ligne de la même largeur que les rangées, avec le via+trace à droite
-  const connLine = document.createElement("div");
-  connLine.style.cssText = "display:flex; align-items:flex-start; flex-shrink:0;";
-  // Spacers pour colonnes 0-3 : chaque colonne = comp + trace
-  for (let i = 0; i < 4; i++) {
-    const sp = document.createElement("div");
-    sp.style.cssText = `width:${CW + TW}px; flex-shrink:0;`;
-    connLine.appendChild(sp);
-  }
-  // Colonne 4 : via + trace + via (centrés sur comp-4 / comp-5)
-  const viaCol = document.createElement("div");
-  viaCol.style.cssText = `width:${CW}px; flex-shrink:0; display:flex; flex-direction:column; align-items:center;`;
-  viaCol.appendChild(via());
-  viaCol.appendChild(traceV());
-  viaCol.appendChild(via());
-  connLine.appendChild(viaCol);
-  container.appendChild(connLine);
-
-  // Rangée 2 : 9 ← 8 ← 7 ← 6 ← 5  (DOM : [9,8,7,6,5] → affiché de gauche à droite)
-  container.appendChild(makeRow([9, 8, 7, 6, 5]));
+    container.appendChild(div);
+  });
 
   setTimeout(() => positionRobot(currentLevel, robot_placed), 100);
 }
