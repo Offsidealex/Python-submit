@@ -665,6 +665,20 @@ function renderBoard() {
         cx:x,cy:y,r:"5",fill:col,stroke:"#050f07","stroke-width":"1.5"
       }));
     });
+    // Pastilles le long de chaque segment
+    for (let s=0; s<route.length-1; s++) {
+      const [x1,y1]=route[s], [x2,y2]=route[s+1];
+      const dx=x2-x1, dy=y2-y1;
+      const len=Math.sqrt(dx*dx+dy*dy);
+      const count=Math.floor(len/44);
+      for (let k=1; k<count; k++) {
+        const t=k/count;
+        svg.appendChild(svgEl("circle",{
+          cx:Math.round(x1+dx*t), cy:Math.round(y1+dy*t),
+          r:"3", fill:col, stroke:"#050f07","stroke-width":"1"
+        }));
+      }
+    }
   });
 
   container.appendChild(svg);
