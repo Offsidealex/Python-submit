@@ -8,39 +8,85 @@
   <style>
     body { font-family: 'Segoe UI', system-ui, sans-serif; }
 
-    /* ── Circuit Board ── */
+    /* ── Circuit Board (PCB) ── */
     #circuit-board {
-      background: #0f1f0f;
-      border: 2px solid #1e3a1e;
-      border-radius: 14px;
-      padding: 32px 36px 28px;
+      background: #0b1e0c;
+      border: 3px solid #c8950a;
+      border-radius: 6px;
+      padding: 28px 22px 24px;
       position: relative;
       overflow: visible;
+      flex-shrink: 0;
     }
+    /* Crosshatch PCB grid */
     #circuit-board::before {
       content: '';
       position: absolute;
       inset: 0;
-      background-image: radial-gradient(circle, #1a2e1a 1px, transparent 1px);
+      background-image:
+        linear-gradient(rgba(50,120,50,0.18) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(50,120,50,0.18) 1px, transparent 1px);
       background-size: 20px 20px;
-      opacity: 0.4;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+    /* Inner silkscreen border */
+    #circuit-board::after {
+      content: '';
+      position: absolute;
+      inset: 14px;
+      border: 1px solid rgba(200,149,10,0.22);
+      border-radius: 2px;
+      pointer-events: none;
     }
 
-    .board-row { display: flex; align-items: center; position: relative; z-index: 1; }
-    .board-row.reverse { flex-direction: row-reverse; }
+    /* Mounting holes */
+    .pcb-hole {
+      position: absolute;
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      background: #050f07;
+      border: 2px solid #c8950a;
+      z-index: 2;
+    }
 
-    .trace { height: 6px; flex: 1; background: linear-gradient(90deg, #92400e, #b45309); border-radius: 3px; min-width: 16px; }
-    .trace-v {
-      width: 6px; height: 44px;
-      background: linear-gradient(180deg, #92400e, #b45309);
+    /* Silkscreen text */
+    .pcb-silk {
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      color: rgba(220,210,160,0.5);
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      position: relative; z-index: 1;
+      margin-bottom: 12px;
+    }
+
+    /* ── PCB Traces ── */
+    .trace-v-pcb {
+      width: 6px; height: 24px;
+      background: linear-gradient(180deg, #7a5000, #c8880a, #7a5000);
       border-radius: 3px;
-      margin-left: auto; margin-right: 42px;
+      flex-shrink: 0;
+    }
+    .trace-h-pcb {
+      height: 6px; width: 100%;
+      background: linear-gradient(90deg, #7a5000, #c8880a, #7a5000);
+      border-radius: 3px;
+    }
+    .via-pcb {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: #c8950a;
+      border: 2px solid #5a3800;
+      box-shadow: 0 0 5px rgba(200,149,10,0.55);
+      flex-shrink: 0;
     }
 
+    /* ── Components ── */
     .comp {
       position: relative;
-      width: 90px; height: 90px;
-      border-radius: 12px;
+      width: 80px; height: 72px;
+      border-radius: 4px;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       cursor: default;
@@ -49,22 +95,33 @@
       flex-shrink: 0;
       overflow: visible;
     }
-    .comp .icon { font-size: 30px; line-height: 1; }
-    .comp .name { font-size: 10px; font-weight: 600; margin-top: 5px; text-align: center; letter-spacing: 0.02em; }
+    .comp .icon { font-size: 24px; line-height: 1; }
+    .comp .name { font-size: 9px; font-weight: 700; margin-top: 4px; text-align: center;
+                  letter-spacing: 0.05em; font-family: 'Courier New', monospace; }
+    /* Pin-1 notch (silkscreen IC indicator) */
+    .comp::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: 50%; transform: translateX(-50%);
+      width: 12px; height: 4px;
+      border-radius: 0 0 3px 3px;
+      background: currentColor;
+      opacity: 0.35;
+    }
 
-    .comp.locked   { background: #1a2a1a; border-color: #2a3a2a; opacity: 0.45; }
-    .comp.locked .name { color: #4a6a4a; }
+    .comp.locked   { background: #0a160a; border-color: #1e3a1e; opacity: 0.45; color: #2a4a2a; }
+    .comp.locked .name { color: #3a5a3a; }
 
     .comp.active {
-      background: #2d1f00; border-color: #f59e0b;
-      box-shadow: 0 0 16px rgba(245,158,11,0.6);
+      background: #1c0e00; border-color: #f59e0b; color: #f59e0b;
+      box-shadow: 0 0 18px rgba(245,158,11,0.65), inset 0 0 8px rgba(245,158,11,0.08);
       animation: pulse-amber 1.8s ease-in-out infinite;
     }
     .comp.active .name { color: #fcd34d; }
 
     .comp.done {
-      background: #0a2a0a; border-color: #22c55e;
-      box-shadow: 0 0 14px rgba(34,197,94,0.45);
+      background: #001d08; border-color: #22c55e; color: #22c55e;
+      box-shadow: 0 0 14px rgba(34,197,94,0.4);
     }
     .comp.done .name { color: #4ade80; }
 
@@ -204,12 +261,17 @@
 </header>
 
 <!-- ══ Main ══ -->
-<main class="max-w-7xl mx-auto px-4 py-5 space-y-5">
+<main class="max-w-7xl mx-auto px-4 py-5">
+<div class="flex gap-5 items-start">
 
-  <!-- Circuit Board -->
+  <!-- Circuit Board PCB (gauche) -->
   <section id="circuit-board">
-    <div class="text-green-600 text-xs font-mono mb-3 opacity-70 relative z-1">// CIRCUIT BOARD — ROBPY v1.0 — en cours de réparation...</div>
-    <div id="board-nodes" class="relative z-1"></div>
+    <div class="pcb-hole" style="top:7px;left:7px"></div>
+    <div class="pcb-hole" style="top:7px;right:7px"></div>
+    <div class="pcb-hole" style="bottom:7px;left:7px"></div>
+    <div class="pcb-hole" style="bottom:7px;right:7px"></div>
+    <div class="pcb-silk">ROBPY&#8209;PCB &nbsp;&#x2022;&nbsp; REV&nbsp;1.0</div>
+    <div id="board-nodes" style="position:relative;z-index:1;"></div>
 
     <!-- Robot SVG (déplacé par JS dans le composant actif) -->
     <svg id="robpy-robot" class="robot-idle" viewBox="0 0 46 62" width="46" height="62" style="display:none">
@@ -248,8 +310,8 @@
     </svg>
   </section>
 
-  <!-- Level + Editor -->
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+  <!-- Partie droite : niveau + éditeur -->
+  <div class="flex-1 min-w-0 space-y-4">
 
     <!-- Level info -->
     <section class="bg-white rounded-2xl shadow p-6 space-y-4">
@@ -317,7 +379,8 @@
       </div>
     </section>
 
-  </div>
+  </div><!-- /flex-1 droite -->
+  </div><!-- /flex gap-5 -->
 </main>
 
 <!-- Monaco -->
@@ -477,11 +540,11 @@ function renderBoard() {
   const container = document.getElementById("board-nodes");
   container.innerHTML = "";
 
-  const row1 = LEVELS.slice(0, 5);
-  const row2 = LEVELS.slice(5, 10);
+  // Serpentine vertical : col gauche 0→4 (haut→bas), col droite 9→5 (haut→bas)
+  // Signal : 0→1→2→3→4 ─(bas)─ 5→6→7→8→9
 
   function makeComp(lv, idx) {
-    const done = completedLevels.has(idx);
+    const done   = completedLevels.has(idx);
     const active = idx === currentLevel && !done;
     const locked = idx > currentLevel && !done;
     const cls = done ? "done" : active ? "active" : "locked";
@@ -489,7 +552,8 @@ function renderBoard() {
     div.className = `comp ${cls}`;
     div.id = `comp-${idx}`;
     div.title = locked ? `🔒 ${lv.component}` : lv.component;
-    div.innerHTML = `<span class="icon">${done ? "✅" : lv.icon}</span><span class="name" style="color:${done?"#4ade80":active?"#fcd34d":"#3a5a3a"}">${lv.component}</span>`;
+    div.innerHTML = `<span class="icon">${done ? "✅" : lv.icon}</span>`
+      + `<span class="name" style="color:${done?"#4ade80":active?"#fcd34d":"#3a5a3a"}">${lv.component}</span>`;
     if (!locked) {
       div.style.cursor = "pointer";
       div.addEventListener("click", () => {
@@ -502,35 +566,44 @@ function renderBoard() {
     return div;
   }
 
-  function makeTrace() {
-    const t = document.createElement("div");
-    t.className = "trace";
-    return t;
+  function cell(content, style) {
+    const d = document.createElement("div");
+    if (style) d.style.cssText = style;
+    if (content) d.appendChild(content);
+    return d;
+  }
+  function traceV() { const d = document.createElement("div"); d.className = "trace-v-pcb"; return d; }
+  function traceH() { const d = document.createElement("div"); d.className = "trace-h-pcb"; return d; }
+  function via()    { const d = document.createElement("div"); d.className = "via-pcb"; return d; }
+
+  // Grille 3 colonnes : [compGauche | connecteur central | compDroite]
+  const grid = document.createElement("div");
+  grid.style.cssText = "display:grid; grid-template-columns:80px 36px 80px; position:relative; z-index:1;";
+
+  for (let row = 0; row < 5; row++) {
+    const li = row;     // 0,1,2,3,4
+    const ri = 9 - row; // 9,8,7,6,5
+
+    // Ligne composants
+    grid.appendChild(cell(makeComp(LEVELS[li], li), "display:flex;justify-content:center;"));
+
+    // Colonne centrale : trace horizontale en bas seulement (liaison 4→5)
+    const mid = document.createElement("div");
+    mid.style.cssText = "display:flex;align-items:center;justify-content:center;";
+    if (row === 4) mid.appendChild(traceH());
+    grid.appendChild(mid);
+
+    grid.appendChild(cell(makeComp(LEVELS[ri], ri), "display:flex;justify-content:center;"));
+
+    // Ligne traces verticales (pas après la dernière ligne)
+    if (row < 4) {
+      grid.appendChild(cell(traceV(), "display:flex;justify-content:center;padding:2px 0;"));
+      grid.appendChild(cell(via(),    "display:flex;justify-content:center;align-items:center;"));
+      grid.appendChild(cell(traceV(), "display:flex;justify-content:center;padding:2px 0;"));
+    }
   }
 
-  // Row 1: left → right
-  const r1 = document.createElement("div");
-  r1.className = "board-row";
-  row1.forEach((lv, i) => {
-    r1.appendChild(makeComp(lv, i));
-    if (i < 4) r1.appendChild(makeTrace());
-  });
-  container.appendChild(r1);
-
-  // Vertical connector on the right
-  const vc = document.createElement("div");
-  vc.className = "trace-v";
-  container.appendChild(vc);
-
-  // Row 2: right → left
-  const r2 = document.createElement("div");
-  r2.className = "board-row reverse";
-  row2.forEach((lv, i) => {
-    r2.appendChild(makeComp(lv, i + 5));
-    if (i < 4) r2.appendChild(makeTrace());
-  });
-  container.appendChild(r2);
-
+  container.appendChild(grid);
   setTimeout(() => positionRobot(currentLevel, robot_placed), 100);
 }
 
