@@ -53,6 +53,11 @@
       <div class="flex items-center gap-4">
         <div id="stats-header" class="text-xs text-blue-200"></div>
         <div id="pyodide-status" class="text-xs bg-blue-800 rounded-full px-3 py-1 flex items-center gap-2"><span class="spin">⟳</span> Chargement Python…</div>
+        <button id="refresh-btn"
+          onclick="loadAll()"
+          class="text-sm bg-green-600 hover:bg-green-700 px-3 py-1 rounded-lg transition">
+          ↻ Actualiser
+        </button>
         <button id="logout-btn"
           class="text-sm bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded-lg transition">
           Déconnexion
