@@ -436,11 +436,12 @@ def submit(sub: SubmissionCreate):
     new_id = cur.fetchone()[0]
     conn.commit(); cur.close(); conn.close()
     # Correction automatique par l'IA
+    note, commentaire = None, None
     try:
-        _run_auto_grade(new_id)
+        note, commentaire = _run_auto_grade(new_id)
     except Exception:
         pass  # On ne bloque pas la soumission si l'IA échoue
-    return {"message": "Soumission enregistrée"}
+    return {"message": "Soumission enregistrée", "note": note, "commentaire": commentaire}
 
 
 @app.get("/submissions")
