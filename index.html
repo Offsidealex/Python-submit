@@ -410,7 +410,7 @@ async function loadExercises() {
     // Déterminer les TPs déverrouillés (prérequis : tous les exercices du TP précédent soumis)
     const unlockedTps = new Set();
     tpList.forEach((tp, idx) => {
-      if (idx === 0) {
+      if (testMode || idx === 0) {
         unlockedTps.add(tp);
       } else {
         const prev = tpList[idx - 1];
