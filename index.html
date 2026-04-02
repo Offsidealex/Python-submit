@@ -967,6 +967,19 @@ function viewMySubmission(id) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+// Packages Pyodide disponibles (chargés à la demande selon les imports du code)
+const PYODIDE_PACKAGES = ["numpy", "matplotlib"];
+
+async function loadRequiredPackages(code) {
+  const needed = PYODIDE_PACKAGES.filter(pkg => {
+    const re = new RegExp(`(^|\\n)\\s*import\\s+${pkg}|(^|\\n)\\s*from\\s+${pkg}\\s+import`);
+    return re.test(code);
+  });
+  if (needed.length > 0) {
+    await pyodide.loadPackagesFromImports(needed.map(p => `import ${p}`).join("\n"));
+  }
+}
+
 async function runCode(code, inputs, interactive = false, echoInputs = false) {
   let wrappedCode;
 
@@ -1033,6 +1046,7 @@ sys.stdout = sys.__stdout__
 (_out, _err)
 `;
   }
+  await loadRequiredPackages(code);
   try {
     if (interactive) {
       // Pas de timeout : l'élève peut prendre le temps qu'il veut pour répondre
