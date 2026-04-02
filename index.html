@@ -264,6 +264,7 @@ let allExercises = [];
 let tabSwitchCount = 0;
 let cheatBlocked = false;
 let ignoreNextBlur = false;
+const testMode = new URLSearchParams(window.location.search).get("mode") === "test";
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 function tryRestoreSession() {
@@ -621,8 +622,14 @@ document.getElementById("exercise-select").addEventListener("change", async (e) 
   const id = e.target.value;
   const infoEl = document.getElementById("exercise-info");
   if (!id) { infoEl.classList.add("hidden"); currentExercise = null; return; }
+  // Sauvegarder le brouillon de l'exercice précédent
+  if (monacoEditor && currentExercise) {
+    const draft = monacoEditor.getValue();
+    localStorage.setItem(`draft_${studentName}_${currentExercise.id}`, draft);
+  }
   // Réinitialiser l'éditeur et les sections
-  if (monacoEditor) monacoEditor.setValue(`# ${studentName}\n# Écrivez votre programme ici\n`);
+  const savedDraft = localStorage.getItem(`draft_${studentName}_${id}`);
+  if (monacoEditor) monacoEditor.setValue(savedDraft || `# ${studentName}\n# Écrivez votre programme ici\n`);
   lastOutput = ""; lastTestResults = [];
   document.getElementById("output-section").classList.add("hidden");
   document.getElementById("test-section").classList.add("hidden");
@@ -771,6 +778,7 @@ document.getElementById("submit-btn").addEventListener("click", async () => {
     if (!res.ok) throw new Error(await res.text());
     showSubmitMsg("✅ Programme déposé avec succès !", "green");
     markTileSubmitted(currentExercise.id);
+    localStorage.removeItem(`draft_${studentName}_${currentExercise.id}`);
     loadExercises(); // rafraîchit les tuiles TP (déverrouille le suivant si nécessaire)
   } catch(e) {
     showSubmitMsg("❌ Erreur : " + e.message, "red");
@@ -1043,7 +1051,7 @@ function loadCheatState(exId) {
 }
 
 function handleFocusLost() {
-  if (!currentExercise || cheatBlocked) return;
+  if (!currentExercise || cheatBlocked || testMode) return;
   tabSwitchCount++;
   saveCheatState(currentExercise.id, tabSwitchCount);
   // Enregistrer immédiatement côté serveur — résistant aux modifications DevTools
@@ -1119,6 +1127,7 @@ async function showCheatBlock() {
         }),
       });
       markTileSubmitted(currentExercise.id);
+      localStorage.removeItem(`draft_${studentName}_${currentExercise.id}`);
       loadExercises();
       if (el) el.innerHTML = `🚫 <b>Soumission bloquée !</b> Vous avez changé de page une 2e fois. Votre note pour cet exercice est <b>0/2</b>. Vous pouvez passer à l'exercice suivant.`;
     } catch(e) {
