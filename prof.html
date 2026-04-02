@@ -846,6 +846,17 @@ async function loadPyodideEnv() {
 }
 loadPyodideEnv();
 
+const PYODIDE_PACKAGES = ["numpy", "matplotlib"];
+async function loadRequiredPackages(code) {
+  const needed = PYODIDE_PACKAGES.filter(pkg => {
+    const re = new RegExp(`(^|\\n)\\s*import\\s+${pkg}|(^|\\n)\\s*from\\s+${pkg}\\s+import`);
+    return re.test(code);
+  });
+  if (needed.length > 0) {
+    await pyodide.loadPackagesFromImports(needed.map(p => `import ${p}`).join("\n"));
+  }
+}
+
 async function runCode(code, inputs) {
   const wrappedReal = `
 import sys, builtins
@@ -872,6 +883,7 @@ _out = sys.stdout.getvalue()
 sys.stdout = sys.__stdout__
 (_out, _err)
 `;
+  await loadRequiredPackages(code);
   try {
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("⏱ Temps dépassé (10 s) : programme trop long ou boucle infinie.")), 10000)
