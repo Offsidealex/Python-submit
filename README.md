@@ -85,3 +85,11 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 - **Frontend** : push sur `main` → GitHub Pages met à jour automatiquement
 - **Backend** : déployé sur Render via `render.yaml`
+
+---
+
+## Licence
+
+© 2025 Alexis RUIZ — Lycée Denis Diderot, Belfort
+
+Ce projet est sous licence [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/deed.fr) — utilisation non commerciale, sans modification, avec attribution obligatoire.
