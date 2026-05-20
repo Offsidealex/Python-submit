@@ -688,3 +688,8 @@ def stats(auth=Depends(check_teacher)):
     cur.execute("SELECT DISTINCT class_id FROM submissions"); classes = [r[0] for r in cur.fetchall()]
     cur.close(); conn.close()
     return {"total_submissions": total_sub, "total_exercises": total_ex, "classes": classes}
+
+@app.get("/health")
+def health():
+ """Endpoint de healthcheck Koyeb — ne touche pas la BDD."""
+ return {"status": "ok"}
