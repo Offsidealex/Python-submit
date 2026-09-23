@@ -2,26 +2,21 @@
 const URL='https://hxfdlujpedxuumqfewvn.supabase.co', KEY='sb_publishable_RMv9HFpnXdId5VxUVy_sDg_Kq57S_lF';
 const sb=supabase.createClient(URL,KEY), frame=document.getElementById('robpy'), status=document.getElementById('sync');
 const name=localStorage.getItem('ps_name')||'', classe=localStorage.getItem('ps_class')||'';let user=null,last='';
-
-// Indices volontairement incomplets : ils orientent sans donner le code à recopier.
-const SOFT_HINTS=[
-  'Utilise print() avec le texte demandé entre guillemets.',
-  'Crée d’abord deux variables R et I, puis utilise print() deux fois pour afficher leur contenu.',
-  'La loi d’Ohm donne la tension à partir de R et I. Stocke le résultat du produit dans U, puis affiche U.',
-  'Une f-string permet d’insérer la valeur d’une variable dans une phrase avec des accolades { }.',
-  'Teste la condition U > 5 avec if. Prévois aussi le cas contraire avec else.',
-  'Il faut trois cas. Commence par tester la tension faible, puis utilise elif pour la zone nominale et else pour le dernier cas.',
-  'Une boucle for avec range() évite d’écrire cinq fois la même instruction. Fais varier un numéro de 1 à 5.',
-  'Utilise une boucle while : répète la division tant que U n’est pas encore descendue sous la valeur demandée. Pense à compter les tours.',
-  'Définis une fonction avec deux paramètres R et I. Elle doit renvoyer leur produit avec return.',
-  'Réutilise les variables R, I, U et P, puis construis la phrase finale avec une f-string. Vérifie soigneusement les unités et l’affichage attendu.'
+const HINTS=[
+ ['Pour afficher un texte en Python, utilise la fonction print().','Le message doit être placé entre guillemets à l’intérieur de print().'],
+ ['Commence par créer deux variables nommées R et I.','Affecte 470 à R et 0.02 à I, puis utilise print() une fois pour chacune.'],
+ ['La tension se calcule ici en multipliant la résistance par le courant.','Stocke le produit de R et I dans la variable U, puis affiche U.'],
+ ['Une f-string permet d’insérer la valeur d’une variable directement dans un texte.','Place la variable U entre accolades { } à l’endroit où sa valeur doit apparaître.'],
+ ['Il faut tester si U est supérieur à 5 avec une condition.','Utilise if pour le cas U > 5 et else pour l’autre cas ; chaque branche doit afficher le bon message.'],
+ ['Trois zones nécessitent trois branches de décision.','Utilise if pour U < 4.5, elif pour la zone jusqu’à 5.5, puis else pour le reste.'],
+ ['Une boucle for peut faire varier un numéro de 1 à 5.','Utilise range(1, 6), puis insère le numéro courant dans le texte avec une f-string.'],
+ ['Une boucle while convient quand on répète une opération jusqu’à atteindre une limite.','Tant que U est au moins égal à 1, divise U par 2 et augmente un compteur de 1.'],
+ ['Une fonction reçoit R et I en paramètres et doit renvoyer leur produit.','Dans tension(R, I), utilise return pour renvoyer le calcul, puis appelle la fonction avec 470 et 0.02.'],
+ ['Calcule d’abord U puis P, avant de construire le bilan.','Pour P, multiplie U par I et arrondis à 3 décimales ; utilise ensuite une f-string pour le bilan.']
 ];
-
+function installProgressiveHints(){try{const d=frame.contentDocument;if(!d)return;const old=d.getElementById('hint-btn'),box=d.getElementById('hint-box'),text=d.getElementById('hint-text');if(!old||!box||!text||old.dataset.progressive==='1')return;const btn=old.cloneNode(true);btn.dataset.progressive='1';old.replaceWith(btn);let step=0,level=-1;function levelIndex(){const m=(d.getElementById('level-badge')?.textContent||'1').match(/(\d+)/);return m?Number(m[1])-1:0}function reset(){level=levelIndex();step=0;btn.disabled=false;btn.textContent='💡 Indice 1';btn.classList.remove('opacity-50','cursor-default');box.classList.add('hidden')}reset();btn.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();const idx=levelIndex();if(idx!==level)reset();const pair=HINTS[idx]||HINTS[0];box.classList.remove('hidden');if(step===0){text.textContent=pair[0];btn.textContent='💡 Besoin d’un indice 2 ?';step=1}else{text.textContent=pair[1];btn.textContent='💡 Indice 2 affiché';btn.disabled=true;btn.classList.add('opacity-50','cursor-default');step=2}},true);const badge=d.getElementById('level-badge');if(badge)new MutationObserver(reset).observe(badge,{childList:true,subtree:true,characterData:true})}catch(e){console.error('Indices progressifs',e)}}
 async function init(){const {data}=await sb.auth.getSession();user=data.session?.user||null;if(!user){status.textContent='⚠️ Reviens par la plateforme pour te connecter';return}status.textContent='☁️ Synchronisation active';await pull();setInterval(sync,1000)}
 async function pull(){const {data,error}=await sb.from('student_progress').select('robpy_progress').eq('user_id',user.id).maybeSingle();if(error)return;const cloud=Number(data?.robpy_progress)||0;let local=[];try{local=JSON.parse(localStorage.getItem(`robpy_${name}`)||'[]')}catch{}const n=Math.max(cloud,local.length);localStorage.setItem(`robpy_${name}`,JSON.stringify(Array.from({length:Math.min(n,10)},(_,i)=>i)));last=localStorage.getItem(`robpy_${name}`)||'[]'}
 async function sync(){if(!user||!name||!classe)return;const raw=localStorage.getItem(`robpy_${name}`)||'[]';if(raw===last)return;last=raw;let levels=[];try{levels=JSON.parse(raw)}catch{}status.textContent='☁️ Sauvegarde…';const {error}=await sb.from('student_progress').update({robpy_progress:Math.min(levels.length,10)}).eq('user_id',user.id);status.textContent=error?'⚠️ Sauvegarde locale':'☁️ Sauvegardé'}
-frame.addEventListener('load',()=>{try{const d=frame.contentDocument;if(name){const inp=d.getElementById('login-name');if(inp){inp.value=name;setTimeout(()=>d.getElementById('login-btn')?.click(),150)}}
-  // Remplace l’indice-solution du tutoriel par un indice pédagogique plus léger.
-  d.addEventListener('click',e=>{if(e.target && e.target.id==='hint-btn'){setTimeout(()=>{const badge=d.getElementById('level-badge')?.textContent||'';const m=badge.match(/(\d+)/);const idx=m?Number(m[1])-1:0;const hint=d.getElementById('hint-text');if(hint)hint.textContent=SOFT_HINTS[idx]||'Relis l’objectif et décompose le problème en petites étapes.';},0)}},true);
-}catch(e){console.error(e)}});window.addEventListener('beforeunload',sync);init();
+frame.addEventListener('load',()=>{try{const d=frame.contentDocument;if(name){const inp=d.getElementById('login-name');if(inp){inp.value=name;setTimeout(()=>d.getElementById('login-btn')?.click(),150)}}setTimeout(installProgressiveHints,250)}catch(e){console.error(e)}});window.addEventListener('beforeunload',sync);init();
 </script></body></html>
