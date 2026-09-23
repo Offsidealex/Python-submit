@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ROBPY – Répare le circuit !</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+
+    /* ── Circuit Board (PCB) ── */
+    #circuit-board {
+      background: #0b1e0c;
+      border: 3px solid #c8950a;
+      border-radius: 6px;
+      padding: 44px 14px 14px;
+      position: relative;
+      overflow: visible;
+      display: flex;
+      flex-direction: column;
+    }
+    /* Crosshatch PCB grid */
+    #circuit-board::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(50,120,50,0.18) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(50,120,50,0.18) 1px, transparent 1px);
+      background-size: 20px 20px;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+    /* Inner silkscreen border */
+    #circuit-board::after {
+      content: '';
+      position: absolute;
+      inset: 14px;
+      border: 1px solid rgba(200,149,10,0.22);
+      border-radius: 2px;
+      pointer-events: none;
+    }
+
+    /* Mounting holes */
+    .pcb-hole {
+      position: absolute;
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      background: #050f07;
+      border: 2px solid #c8950a;
+      z-index: 2;
+    }
+
+    /* Silkscreen text */
+    .pcb-silk {
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      color: rgba(220,210,160,0.5);
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      position: relative; z-index: 1;
+      margin-bottom: 12px;
+    }
+
+    /* ── PCB Traces ── */
+    .trace-v-pcb {
+      width: 6px; height: 32px;
+      background: linear-gradient(180deg, #7a5000, #c8880a, #7a5000);
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .trace-h-pcb {
+      height: 6px;
+      background: linear-gradient(90deg, #7a5000, #c8880a, #7a5000);
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .via-pcb {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: #c8950a;
+      border: 2px solid #5a3800;
+      box-shadow: 0 0 5px rgba(200,149,10,0.55);
+      flex-shrink: 0;
+    }
+
+    /* ── Components ── */
+    .comp {
+      position: relative;
+      width: 96px; height: 88px;
+      border-radius: 4px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      cursor: default;
+      transition: all 0.4s;
+      border: 2px solid transparent;
+      flex-shrink: 0;
+      overflow: visible;
+    }
+    .comp .icon { font-size: 28px; line-height: 1; }
+    .comp .name { font-size: 10px; font-weight: 700; margin-top: 5px; text-align: center;
+                  letter-spacing: 0.05em; font-family: 'Courier New', monospace; }
+    /* Pin-1 notch (silkscreen IC indicator) */
+    .comp::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: 50%; transform: translateX(-50%);
+      width: 12px; height: 4px;
+      border-radius: 0 0 3px 3px;
+      background: currentColor;
+      opacity: 0.35;
+    }
+
+    .comp.locked   { background: #0a160a; border-color: #1e3a1e; opacity: 0.45; color: #2a4a2a; }
+    .comp.locked .name { color: #3a5a3a; }
+
+    .comp.active {
+      background: #1c0e00; border-color: #f59e0b; color: #f59e0b;
+      box-shadow: 0 0 18px rgba(245,158,11,0.65), inset 0 0 8px rgba(245,158,11,0.08);
+      animation: pulse-amber 1.8s ease-in-out infinite;
+    }
+    .comp.active .name { color: #fcd34d; }
+
+    .comp.done {
+      background: #001d08; border-color: #22c55e; color: #22c55e;
+      box-shadow: 0 0 14px rgba(34,197,94,0.4);
+    }
+    .comp.done .name { color: #4ade80; }
+
+    @keyframes pulse-amber {
+      0%,100% { box-shadow: 0 0 16px rgba(245,158,11,0.5); }
+      50%      { box-shadow: 0 0 28px rgba(245,158,11,0.9); }
+    }
+    @keyframes flash-success {
+      0%   { background: rgba(34,197,94,0.25); }
+      100% { background: transparent; }
+    }
+    .flash { animation: flash-success 0.7s ease; }
+
+    /* ── ROBPY Robot ── */
+    #robpy-robot {
+      position: absolute;
+      z-index: 20;
+      pointer-events: none;
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.7));
+      /* smooth glide between components */
+      transition: left 0.7s cubic-bezier(0.4,0,0.2,1), top 0.7s cubic-bezier(0.4,0,0.2,1);
+    }
+    @keyframes robot-idle {
+      0%,100% { transform: translateY(0px); }
+      50%      { transform: translateY(-6px); }
+    }
+    @keyframes robot-arrive {
+      0%   { opacity: 0; transform: translateY(-18px); }
+      100% { opacity: 1; transform: translateY(0px); }
+    }
+    @keyframes robot-celebrate {
+      0%   { transform: translateY(0) rotate(0deg) scale(1); }
+      25%  { transform: translateY(-14px) rotate(-12deg) scale(1.2); }
+      75%  { transform: translateY(-14px) rotate(12deg) scale(1.2); }
+      100% { transform: translateY(0) rotate(0deg) scale(1); }
+    }
+    .robot-idle     { animation: robot-idle 2s ease-in-out infinite; }
+    .robot-arrive   { animation: robot-arrive 0.4s ease forwards; }
+    .robot-celebrate{ animation: robot-celebrate 0.5s ease-in-out 3; }
+
+    /* ── Editor ── */
+    #editor-container { height: 260px; border-radius: 8px; overflow: hidden; border: 1px solid #d1d5db; }
+
+    #output-box {
+      background: #0f172a; color: #34d399;
+      font-family: 'Courier New', monospace; font-size: 13px;
+      padding: 12px; border-radius: 8px;
+      min-height: 72px; max-height: 180px;
+      white-space: pre-wrap; overflow-y: auto;
+    }
+    #output-box.error { color: #f87171; }
+
+    /* ── Misc ── */
+    .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700;
+             padding: 2px 10px; border-radius: 999px; }
+    .badge-level  { background: #dcfce7; color: #15803d; }
+    .badge-concept{ background: #dbeafe; color: #1d4ed8; }
+
+    .story-box {
+      background: #f0fdf4; border-left: 4px solid #22c55e;
+      border-radius: 0 8px 8px 0; padding: 12px 14px;
+    }
+
+    /* Confetti */
+    .confetti-piece {
+      position: fixed; width: 10px; height: 10px; border-radius: 2px;
+      animation: confetti-fall 1.4s ease-in forwards;
+      pointer-events: none; z-index: 9999;
+    }
+    @keyframes confetti-fall {
+      0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* Completion screen */
+    #completion-screen {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    #completion-screen.show { display: flex; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<!-- ══ Login ══ -->
+<div id="login-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-50">
+  <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center space-y-5">
+    <div class="text-7xl animate-bounce">🤖</div>
+    <h1 class="text-2xl font-extrabold text-gray-800">ROBPY</h1>
+    <p class="text-gray-500 text-sm">Un circuit est en panne ! Aide ROBPY à le réparer en apprenant Python, une commande à la fois.</p>
+    <input id="login-name" type="text" placeholder="Ton prénom et nom"
+      class="w-full border-2 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
+    <button id="login-btn"
+      class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold text-sm transition">
+      🚀 Démarrer la mission !
+    </button>
+    <a href="index.html" class="block text-xs text-gray-400 hover:text-gray-600">← Retour à la plateforme</a>
+  </div>
+</div>
+
+<!-- ══ Completion screen ══ -->
+<div id="completion-screen">
+  <div class="bg-white rounded-2xl shadow-2xl p-10 text-center max-w-md space-y-4">
+    <div class="text-6xl">🏆</div>
+    <h2 class="text-2xl font-extrabold text-green-700">Circuit entièrement réparé !</h2>
+    <p class="text-gray-600">ROBPY a réussi sa mission. Tu maîtrises les bases de Python — bravo !</p>
+    <a href="index.html"
+      class="inline-block mt-2 bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl font-bold transition">
+      Aller aux exercices →
+    </a>
+  </div>
+</div>
+
+<!-- ══ Header ══ -->
+<header class="bg-gray-900 text-white px-5 py-3 flex items-center justify-between sticky top-0 z-10 shadow">
+  <div class="flex items-center gap-3">
+    <span class="text-2xl">🤖</span>
+    <div>
+      <h1 class="font-extrabold text-green-400 leading-tight">ROBPY</h1>
+      <p class="text-xs text-gray-500">Répare le circuit</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-6">
+    <span id="student-display" class="text-sm text-gray-300 hidden"></span>
+    <div class="text-right">
+      <div class="text-xs text-gray-500">Composants réparés</div>
+      <div class="font-bold text-green-400 text-sm" id="progress-text">0 / 10</div>
+    </div>
+    <div class="w-28 bg-gray-700 rounded-full h-2">
+      <div id="progress-bar" class="bg-green-500 h-2 rounded-full transition-all" style="width:0%"></div>
+    </div>
+    <a href="index.html" class="text-xs text-gray-400 hover:text-white transition">← Plateforme</a>
+  </div>
+</header>
+
+<!-- ══ Main ══ -->
+<main class="max-w-7xl mx-auto px-4 py-5">
+<div class="grid grid-cols-2 gap-5">
+
+  <!-- Circuit Board PCB (gauche) -->
+  <section id="circuit-board">
+    <div class="pcb-hole" style="top:7px;left:7px"></div>
+    <div class="pcb-hole" style="top:7px;right:7px"></div>
+    <div class="pcb-hole" style="bottom:7px;left:7px"></div>
+    <div class="pcb-hole" style="bottom:7px;right:7px"></div>
+    <div class="pcb-silk">ROBPY&#8209;PCB &nbsp;&#x2022;&nbsp; REV&nbsp;1.0</div>
+    <div id="board-nodes" style="position:relative;flex:1;min-height:680px;width:100%;"></div>
+
+    <!-- Robot SVG (déplacé par JS dans le composant actif) -->
+    <svg id="robpy-robot" class="robot-idle" viewBox="0 0 46 62" width="46" height="62" style="display:none">
+      <!-- Antenne -->
+      <rect x="21" y="0" width="4" height="10" rx="2" fill="#fbbf24"/>
+      <circle cx="23" cy="1" r="5" fill="#fbbf24"/>
+      <circle cx="23" cy="1" r="2.5" fill="#fef3c7"/>
+      <!-- Tête -->
+      <rect x="4" y="10" width="38" height="24" rx="8" fill="#60a5fa"/>
+      <rect x="4" y="10" width="38" height="24" rx="8" fill="none" stroke="#2563eb" stroke-width="2"/>
+      <!-- Yeux -->
+      <circle cx="15" cy="21" r="6" fill="white"/>
+      <circle cx="31" cy="21" r="6" fill="white"/>
+      <circle cx="16" cy="21" r="3.5" fill="#1e40af"/>
+      <circle cx="32" cy="21" r="3.5" fill="#1e40af"/>
+      <circle cx="17" cy="20" r="1.3" fill="white"/>
+      <circle cx="33" cy="20" r="1.3" fill="white"/>
+      <!-- Bouche -->
+      <path d="M15 29 Q23 34 31 29" stroke="#1e40af" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <!-- Cou -->
+      <rect x="18" y="34" width="10" height="6" rx="3" fill="#3b82f6"/>
+      <!-- Corps -->
+      <rect x="2" y="40" width="42" height="22" rx="8" fill="#2563eb"/>
+      <rect x="2" y="40" width="42" height="22" rx="8" fill="none" stroke="#1d4ed8" stroke-width="2"/>
+      <!-- Panneau de contrôle -->
+      <rect x="9" y="45" width="28" height="12" rx="4" fill="#bfdbfe"/>
+      <circle id="rlight1" cx="16" cy="51" r="3.5" fill="#22c55e"/>
+      <circle id="rlight2" cx="23" cy="51" r="3.5" fill="#fbbf24"/>
+      <circle id="rlight3" cx="30" cy="51" r="3.5" fill="#f87171"/>
+      <!-- Bras gauche -->
+      <rect x="-5" y="41" width="7" height="16" rx="3.5" fill="#3b82f6" stroke="#2563eb" stroke-width="1.5"/>
+      <ellipse cx="-2" cy="58" rx="4" ry="3" fill="#2563eb"/>
+      <!-- Bras droit -->
+      <rect x="44" y="41" width="7" height="16" rx="3.5" fill="#3b82f6" stroke="#2563eb" stroke-width="1.5"/>
+      <ellipse cx="48" cy="58" rx="4" ry="3" fill="#2563eb"/>
+    </svg>
+  </section>
+
+  <!-- Partie droite : niveau + éditeur -->
+  <div class="flex-1 min-w-0 space-y-4">
+
+    <!-- Level info -->
+    <section class="bg-white rounded-2xl shadow p-6 space-y-4">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="badge badge-level" id="level-badge">Niveau 1</span>
+        <span class="badge badge-concept" id="concept-badge">print()</span>
+        <h2 class="font-bold text-gray-800" id="level-title"></h2>
+      </div>
+
+      <div class="story-box">
+        <p class="text-sm text-gray-700 leading-relaxed" id="level-story"></p>
+      </div>
+
+      <div>
+        <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">🎯 Objectif</div>
+        <p class="text-sm text-gray-700" id="level-objective"></p>
+      </div>
+
+      <div id="expected-box" class="hidden">
+        <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">📋 Sortie attendue</div>
+        <pre class="bg-gray-900 text-green-400 text-xs rounded-lg p-3 font-mono" id="expected-output"></pre>
+      </div>
+
+      <div id="hint-box" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3">
+        <p class="text-xs font-bold text-amber-600 mb-1">💡 Indice</p>
+        <code class="text-sm text-amber-800 font-mono" id="hint-text"></code>
+      </div>
+      <button id="hint-btn" class="text-xs text-gray-400 hover:text-amber-500 transition underline">💡 Afficher un indice</button>
+
+      <div id="success-box" class="hidden bg-green-50 border-2 border-green-300 rounded-xl p-4 space-y-3">
+        <p class="text-sm font-semibold text-green-700" id="success-msg"></p>
+        <button id="next-btn"
+          class="bg-green-600 hover:bg-green-700 text-white text-sm px-5 py-2 rounded-xl font-bold transition">
+          Niveau suivant →
+        </button>
+      </div>
+
+      <div id="error-box" class="hidden bg-red-50 border border-red-200 rounded-xl p-3">
+        <p class="text-xs font-bold text-red-600 mb-1">❌ Pas tout à fait...</p>
+        <p class="text-sm text-red-700" id="error-msg"></p>
+      </div>
+
+      <div id="pyodide-status" class="text-xs text-gray-400 flex items-center gap-1">
+        <span class="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
+        Chargement de Python…
+      </div>
+    </section>
+
+    <!-- Editor + Output -->
+    <section class="space-y-4">
+      <div class="bg-white rounded-2xl shadow p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-gray-700 text-sm">✏️ Ton code</h3>
+          <button id="reset-btn" class="text-xs text-gray-400 hover:text-red-500 transition">🗑 Réinitialiser</button>
+        </div>
+        <div id="editor-container"></div>
+        <button id="run-btn"
+          class="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2">
+          <span id="run-label">▶ Exécuter</span>
+        </button>
+      </div>
+      <div class="bg-white rounded-2xl shadow p-4 space-y-2">
+        <h3 class="font-semibold text-gray-700 text-sm">🖥 Sortie de ROBPY</h3>
+        <pre id="output-box">(aucune sortie)</pre>
+      </div>
+    </section>
+
+  </div><!-- /flex-1 droite -->
+  </div><!-- /flex gap-5 -->
+</main>
+
+<!-- Monaco -->
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<!-- Pyodide -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  LEVEL DATA
+// ══════════════════════════════════════════════════════
+const LEVELS = [
+  {
+    id: 1, icon: "📡", component: "Antenne", concept: "print()",
+    title: "Premier signal",
+    story: "ROBPY vient de s'activer mais l'antenne du circuit est muette. Pour démarrer le diagnostic, il doit envoyer un signal d'identification. Utilise print() pour transmettre le message.",
+    objective: "Afficher exactement le message de démarrage.",
+    expected: "Circuit en ligne",
+    hint: 'print("Circuit en ligne")',
+    starter: '# ROBPY s\'initialise...\n# Envoie le signal de démarrage !\n\n',
+    validate: o => o.trim() === "Circuit en ligne",
+    success: "✅ Signal transmis ! L'antenne est réparée.",
+  },
+  {
+    id: 2, icon: "🔍", component: "Capteur", concept: "Variables",
+    title: "Identifier les composants",
+    story: "Le capteur de ROBPY détecte deux valeurs dans le circuit : une résistance R = 470 Ω et un courant I = 0,02 A. Déclare ces deux variables et affiche-les.",
+    objective: "Déclarer R = 470 et I = 0.02, afficher chaque valeur sur une ligne.",
+    expected: "470\n0.02",
+    hint: "R = 470\nI = 0.02\nprint(R)\nprint(I)",
+    starter: '# Déclare les variables\nR = \nI = \n# Affiche-les\n',
+    validate: o => o.includes("470") && o.includes("0.02"),
+    success: "✅ Composants identifiés ! Le capteur est opérationnel.",
+  },
+  {
+    id: 3, icon: "⚡", component: "Voltmètre", concept: "Calcul",
+    title: "Mesurer la tension",
+    story: "Le voltmètre est en panne — il ne calcule plus rien. ROBPY doit appliquer la loi d'Ohm pour mesurer la tension : U = R × I. Calcule et affiche U.",
+    objective: "Avec R = 470 et I = 0.02, calculer U = R * I et afficher le résultat.",
+    expected: "9.4",
+    hint: "U = R * I\nprint(U)",
+    starter: 'R = 470\nI = 0.02\nU = \nprint(U)\n',
+    validate: o => o.includes("9.4"),
+    success: "✅ Tension mesurée : 9,4 V ! Le voltmètre est calibré.",
+  },
+  {
+    id: 4, icon: "🖥", component: "Écran", concept: "f-string",
+    title: "Rapport formaté",
+    story: "L'écran de contrôle affiche des données illisibles. ROBPY doit formater le rapport de tension avec une f-string pour que l'opérateur comprenne.",
+    objective: 'Afficher exactement : Tension U = 9.4 V',
+    expected: "Tension U = 9.4 V",
+    hint: 'print(f"Tension U = {U} V")',
+    starter: 'R = 470\nI = 0.02\nU = R * I\nprint(f"Tension U = ...")\n',
+    validate: o => o.trim() === "Tension U = 9.4 V",
+    success: "✅ Rapport lisible ! L'écran de contrôle est réparé.",
+  },
+  {
+    id: 5, icon: "💡", component: "LED", concept: "if / else",
+    title: "Vérifier la LED",
+    story: "La LED de signalisation ne réagit plus. Elle doit s'allumer si U > 5 V, rester éteinte sinon. ROBPY doit programmer cette décision avec if/else.",
+    objective: 'Si U = 9.4 > 5 → afficher "LED allumée", sinon "LED éteinte".',
+    expected: "LED allumée",
+    hint: "if U > 5:\n    print(\"LED allumée\")\nelse:\n    print(\"LED éteinte\")",
+    starter: 'U = 9.4\nif U > 5:\n    \nelse:\n    \n',
+    validate: o => o.trim() === "LED allumée",
+    success: "✅ LED vérifiée ! Le voyant de signalisation s'allume.",
+  },
+  {
+    id: 6, icon: "🔧", component: "Régulateur", concept: "if / elif / else",
+    title: "Classer la tension",
+    story: "Le régulateur de tension doit classifier le signal en 3 zones : faible, nominale ou élevée. ROBPY utilise if/elif/else pour prendre la bonne décision.",
+    objective: "U < 4.5 → faible | 4.5 ≤ U ≤ 5.5 → nominale | U > 5.5 → élevée.\nAvec U = 5.0, afficher \"Tension nominale\".",
+    expected: "Tension nominale",
+    hint: "if U < 4.5:\n    print(\"Tension faible\")\nelif U <= 5.5:\n    print(\"Tension nominale\")\nelse:\n    print(\"Tension élevée\")",
+    starter: 'U = 5.0\nif U < 4.5:\n    print("Tension faible")\nelif :\n    \nelse:\n    \n',
+    validate: o => o.trim() === "Tension nominale",
+    success: "✅ Tension classifiée ! Le régulateur est recalibré.",
+  },
+  {
+    id: 7, icon: "🔎", component: "Scanner", concept: "Boucle for",
+    title: "Scanner les résistances",
+    story: "Le scanner de ROBPY doit vérifier 5 résistances numérotées R1 à R5. Plutôt que de répéter 5 fois le même code, utilise une boucle for !",
+    objective: "Avec range(1, 6), afficher R1 OK, R2 OK, ..., R5 OK.",
+    expected: "R1 OK\nR2 OK\nR3 OK\nR4 OK\nR5 OK",
+    hint: "for i in range(1, 6):\n    print(f\"R{i} OK\")",
+    starter: 'for i in range(1, 6):\n    print()\n',
+    validate: o => {
+      const lines = o.trim().split('\n');
+      return lines.length === 5 && lines.every((l, i) => l.trim() === `R${i+1} OK`);
+    },
+    success: "✅ 5 résistances vérifiées ! Le scanner est opérationnel.",
+  },
+  {
+    id: 8, icon: "⚙️", component: "Disjoncteur", concept: "Boucle while",
+    title: "Réduire la surtension",
+    story: "ALERTE ! Une surtension de 100 V met le circuit en danger. À chaque cycle de sécurité, ROBPY divise U par 2. Combien de cycles pour descendre sous 1 V ?",
+    objective: "Partir de U = 100, diviser par 2 avec while jusqu'à U < 1. Afficher le nombre de cycles.",
+    expected: "7",
+    hint: "U = 100\nn = 0\nwhile U >= 1:\n    U /= 2\n    n += 1\nprint(n)",
+    starter: 'U = 100\nn = 0\nwhile U >= 1:\n    U /= 2\n    n += 1\nprint(n)\n',
+    validate: o => o.trim() === "7",
+    success: "✅ Surtension réduite en 7 cycles ! Le disjoncteur est réarmé.",
+  },
+  {
+    id: 9, icon: "💻", component: "Processeur", concept: "Fonctions",
+    title: "Fonction de calcul",
+    story: "ROBPY doit programmer le processeur avec une fonction réutilisable. Plutôt de recalculer U à la main à chaque fois, crée une fonction tension(R, I) qui retourne R × I.",
+    objective: "Définir def tension(R, I) avec return, puis afficher tension(470, 0.02).",
+    expected: "9.4",
+    hint: "def tension(R, I):\n    return R * I\n\nprint(tension(470, 0.02))",
+    starter: 'def tension(R, I):\n    return \n\nprint(tension(470, 0.02))\n',
+    validate: o => o.includes("9.4"),
+    success: "✅ Processeur programmé ! La fonction est compilée et opérationnelle.",
+  },
+  {
+    id: 10, icon: "🏆", component: "Tableau de bord", concept: "Synthèse",
+    title: "Circuit réparé !",
+    story: "Dernier composant ! ROBPY doit générer le rapport final complet du circuit : résistance, courant, tension et puissance. Utilise une fonction et une f-string.",
+    objective: "Afficher exactement : Bilan : R=470 Ω, I=0.02 A, U=9.4 V, P=0.188 W",
+    expected: "Bilan : R=470 Ω, I=0.02 A, U=9.4 V, P=0.188 W",
+    hint: 'R=470; I=0.02; U=R*I; P=round(U*I,3)\nprint(f"Bilan : R={R} Ω, I={I} A, U={U} V, P={P} W")',
+    starter: 'R = 470\nI = 0.02\nU = R * I\nP = round(U * I, 3)\nprint(f"Bilan : ...")\n',
+    validate: o => o.includes("R=470") && o.includes("U=9.4") && o.includes("P=0.188"),
+    success: "🎉 Circuit entièrement réparé ! Mission accomplie, ROBPY est fier de toi !",
+  },
+];
+
+// ══════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════
+let studentName = "";
+let currentLevel = 0; // 0-indexed
+let completedLevels = new Set();
+let pyodide = null;
+let editor = null;
+let pyReady = false;
+let robot_placed = false; // premier placement = pas de transition
+
+function storageKey() { return `robpy_${studentName}`; }
+
+function saveProgress() {
+  localStorage.setItem(storageKey(), JSON.stringify([...completedLevels]));
+  localStorage.setItem(`robpy_level_${studentName}`, currentLevel);
+}
+
+function loadProgress() {
+  const saved = localStorage.getItem(storageKey());
+  if (saved) completedLevels = new Set(JSON.parse(saved));
+  const lvl = localStorage.getItem(`robpy_level_${studentName}`);
+  if (lvl !== null) currentLevel = parseInt(lvl);
+}
+
+// ══════════════════════════════════════════════════════
+//  CIRCUIT BOARD  (positionnement absolu + SVG)
+// ══════════════════════════════════════════════════════
+function renderBoard() {
+  const container = document.getElementById("board-nodes");
+  container.innerHTML = "";
+
+  const CW = 96, CH = 88; // dimensions des composants
+
+  // Centres des composants [cx, cy] dans board-nodes
+  const POS = [
+    [72,  68],   // 0 Antenne
+    [418, 62],   // 1 Capteur
+    [460, 200],  // 2 Voltmètre
+    [188, 208],  // 3 Écran
+    [72,  355],  // 4 LED
+    [178, 502],  // 5 Régulateur
+    [338, 362],  // 6 Scanner
+    [453, 492],  // 7 Disjoncteur
+    [334, 614],  // 8 Processeur
+    [72,  622],  // 9 Tableau de bord
+  ];
+
+  // Routes Manhattan connectant les centres (0→1→…→9)
+  const ROUTES = [
+    [[72,68],  [418,68],  [418,62]],
+    [[418,62], [460,62],  [460,200]],
+    [[460,200],[188,200], [188,208]],
+    [[188,208],[188,278], [72,278],  [72,355]],
+    [[72,355], [72,502],  [178,502]],
+    [[178,502],[338,502], [338,362]],
+    [[338,362],[453,362], [453,492]],
+    [[453,492],[453,596], [334,596], [334,614]],
+    [[334,614],[72,614],  [72,622]],
+  ];
+
+  // Traces décoratives (fond de carte)
+  const DECO = [
+    [[12,132],[58,132],[58,164]],
+    [[518,90],[518,176],[482,176]],
+    [[132,22],[132,54]],
+    [[255,240],[255,328],[308,328]],
+    [[404,260],[508,260],[508,338]],
+    [[28,430],[28,456]],
+    [[504,438],[524,438],[524,548]],
+    [[132,570],[132,648],[200,648]],
+    [[268,670],[268,678]],
+    [[492,572],[512,572],[512,608]],
+    [[382,550],[382,582]],
+    [[298,94],[298,118],[350,118]],
+    [[438,582],[438,662],[388,662]],
+    [[18,552],[18,580],[42,580]],
+    [[250,458],[250,488],[290,488]],
+    [[510,300],[510,330]],
+    [[160,350],[160,380],[120,380]],
+  ];
+
+  // ── SVG (derrière les composants) ──────────────────
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("width","100%"); svg.setAttribute("height","100%");
+  svg.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:0;";
+
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS(NS, tag);
+    for (const [k,v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  }
+  function pts(route) { return route.map(([x,y])=>`${x},${y}`).join(' '); }
+
+  // Traces décoratives (très atténuées)
+  DECO.forEach(r => svg.appendChild(svgEl("polyline",{
+    points: pts(r), stroke:"rgba(200,149,10,0.2)", "stroke-width":"3.5",
+    "stroke-linecap":"round", fill:"none"
+  })));
+
+  // Condensateurs décoratifs (C1 C2 C3)
+  [[305,128],[502,368],[208,675]].forEach(([x,y],i)=>{
+    [-1,1].forEach(s => svg.appendChild(svgEl("rect",{
+      x:x+s*10-7, y:y-5, width:"14", height:"10", rx:"1",
+      fill:"rgba(200,149,10,0.28)"
+    })));
+    const t = svgEl("text",{x, y:y-12,"text-anchor":"middle",
+      "font-family":"monospace","font-size":"8",fill:"rgba(220,210,160,0.38)"});
+    t.textContent=`C${i+1}`; svg.appendChild(t);
+  });
+
+  // Points de test (TP)
+  [[242,112],[530,348],[172,666]].forEach(([x,y],i)=>{
+    svg.appendChild(svgEl("circle",{cx:x,cy:y,r:"5",
+      fill:"rgba(200,149,10,0.32)","stroke":"rgba(200,149,10,0.5)","stroke-width":"1.5"}));
+    const t = svgEl("text",{x:x+8,y:y+4,"font-family":"monospace",
+      "font-size":"7",fill:"rgba(220,210,160,0.32)"});
+    t.textContent=`TP${i+1}`; svg.appendChild(t);
+  });
+
+  // Pastilles de composants (pad SVG sous chaque comp)
+  POS.forEach(([cx,cy],idx)=>{
+    const done=completedLevels.has(idx), active=idx===currentLevel&&!done;
+    svg.appendChild(svgEl("rect",{
+      x:cx-CW/2-5, y:cy-CH/2-5, width:CW+10, height:CH+10, rx:"7",
+      fill: done?"rgba(34,197,94,0.12)":active?"rgba(245,158,11,0.12)":"rgba(200,149,10,0.07)",
+      stroke: done?"rgba(34,197,94,0.35)":active?"rgba(245,158,11,0.35)":"rgba(200,149,10,0.2)",
+      "stroke-width":"1.5"
+    }));
+    // Référence silkscreen (U1, U2…)
+    const t = svgEl("text",{x:cx-CW/2+2, y:cy-CH/2-8,
+      "font-family":"monospace","font-size":"8",fill:"rgba(220,210,160,0.4)"});
+    t.textContent=`U${idx+1}`; svg.appendChild(t);
+  });
+
+  // Traces principales du circuit (colorées selon état)
+  function traceState(i) {
+    if (completedLevels.has(i) && completedLevels.has(i+1)) return "done";
+    if (completedLevels.has(i) && i+1===currentLevel)       return "active";
+    return "locked";
+  }
+  ROUTES.forEach((route,i)=>{
+    const st=traceState(i);
+    const col = st==="done"?"#22c55e": st==="active"?"#f59e0b":"rgba(200,149,10,0.4)";
+    svg.appendChild(svgEl("polyline",{
+      points:pts(route), stroke:col, "stroke-width":"5",
+      "stroke-linecap":"round","stroke-linejoin":"round",fill:"none"
+    }));
+    // Vias aux coudes
+    route.slice(1,-1).forEach(([x,y])=>{
+      svg.appendChild(svgEl("circle",{
+        cx:x,cy:y,r:"5",fill:col,stroke:"#050f07","stroke-width":"1.5"
+      }));
+    });
+    // Pastilles le long de chaque segment
+    for (let s=0; s<route.length-1; s++) {
+      const [x1,y1]=route[s], [x2,y2]=route[s+1];
+      const dx=x2-x1, dy=y2-y1;
+      const len=Math.sqrt(dx*dx+dy*dy);
+      const count=Math.floor(len/44);
+      for (let k=1; k<count; k++) {
+        const t=k/count;
+        svg.appendChild(svgEl("circle",{
+          cx:Math.round(x1+dx*t), cy:Math.round(y1+dy*t),
+          r:"3", fill:col, stroke:"#050f07","stroke-width":"1"
+        }));
+      }
+    }
+  });
+
+  container.appendChild(svg);
+
+  // ── Composants (divs absolus) ──────────────────────
+  LEVELS.forEach((lv, idx) => {
+    const done   = completedLevels.has(idx);
+    const active = idx === currentLevel && !done;
+    const locked = idx > currentLevel && !done;
+    const cls = done?"done": active?"active":"locked";
+    const div = document.createElement("div");
+    div.className = `comp ${cls}`;
+    div.id = `comp-${idx}`;
+    div.title = locked ? `🔒 ${lv.component}` : lv.component;
+    div.style.cssText = `position:absolute;left:${POS[idx][0]-CW/2}px;top:${POS[idx][1]-CH/2}px;z-index:1;`;
+    div.innerHTML = `<span class="icon">${done?"✅":lv.icon}</span>`
+      + `<span class="name" style="color:${done?"#4ade80":active?"#fcd34d":"#3a5a3a"}">${lv.component}</span>`;
+    if (!locked) {
+      div.style.cursor = "pointer";
+      div.addEventListener("click", () => {
+        currentLevel = idx; saveProgress();
+        showLevel(currentLevel);
+        window.scrollTo({top:0,behavior:"smooth"});
+      });
+    }
+    container.appendChild(div);
+  });
+
+  setTimeout(() => positionRobot(currentLevel, robot_placed), 100);
+}
+
+function positionRobot(idx, animate = true) {
+  const robot = document.getElementById("robpy-robot");
+  const comp  = document.getElementById(`comp-${idx}`);
+  const board = document.getElementById("circuit-board");
+  if (!robot || !comp || !board) return;
+
+  // Robot reste toujours dans #circuit-board (jamais dans board-nodes)
+  if (robot.parentElement !== board) board.appendChild(robot);
+
+  // Calcul de la position cible via getBoundingClientRect
+  const boardRect = board.getBoundingClientRect();
+  const compRect  = comp.getBoundingClientRect();
+  const bl = parseFloat(getComputedStyle(board).borderLeftWidth) || 0;
+  const bt = parseFloat(getComputedStyle(board).borderTopWidth)  || 0;
+  const rw = 46, rh = 62;
+
+  const targetLeft = (compRect.left - boardRect.left - bl) + (compRect.width  / 2) - (rw / 2);
+  const targetTop  = (compRect.top  - boardRect.top  - bt) - rh - 8;
+
+  robot.style.display = "";
+
+  if (!animate) {
+    // Placement immédiat sans transition (premier affichage)
+    robot.style.transition = "none";
+    robot.style.left = targetLeft + "px";
+    robot.style.top  = targetTop  + "px";
+    void robot.offsetWidth; // force reflow
+    robot.style.transition = ""; // restaure la transition CSS
+    robot.classList.remove("robot-idle", "robot-celebrate", "robot-arrive");
+    void robot.offsetWidth;
+    robot.classList.add("robot-arrive");
+    setTimeout(() => { robot.classList.remove("robot-arrive"); robot.classList.add("robot-idle"); }, 450);
+    robot_placed = true;
+  } else {
+    // Glissement animé vers la cible
+    robot.classList.remove("robot-idle", "robot-celebrate", "robot-arrive");
+    robot.style.left = targetLeft + "px";
+    robot.style.top  = targetTop  + "px";
+    setTimeout(() => { robot.classList.add("robot-idle"); }, 750);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  LEVEL DISPLAY
+// ══════════════════════════════════════════════════════
+function showLevel(idx) {
+  const lv = LEVELS[idx];
+  document.getElementById("level-badge").textContent = `Niveau ${lv.id}`;
+  document.getElementById("concept-badge").textContent = lv.concept;
+  document.getElementById("level-title").textContent = lv.title;
+  document.getElementById("level-story").textContent = lv.story;
+  document.getElementById("level-objective").textContent = lv.objective;
+
+  const expBox = document.getElementById("expected-box");
+  if (lv.expected) {
+    expBox.classList.remove("hidden");
+    document.getElementById("expected-output").textContent = lv.expected;
+  } else {
+    expBox.classList.add("hidden");
+  }
+
+  document.getElementById("hint-box").classList.add("hidden");
+  document.getElementById("success-box").classList.add("hidden");
+  document.getElementById("error-box").classList.add("hidden");
+  document.getElementById("output-box").textContent = "(aucune sortie)";
+  document.getElementById("output-box").className = "";
+
+  const runBtn = document.getElementById("run-btn");
+  const runLabel = document.getElementById("run-label");
+  if (editor) {
+    if (completedLevels.has(idx)) {
+      editor.setValue(lv.starter);
+      editor.updateOptions({ readOnly: true });
+      runBtn.disabled = true;
+      runLabel.textContent = "✅ Déjà complété";
+      runBtn.classList.replace("bg-green-600", "bg-gray-400");
+      runBtn.classList.replace("hover:bg-green-700", "hover:bg-gray-400");
+      // Afficher la boîte de succès avec bouton pour continuer
+      document.getElementById("success-msg").textContent = lv.success;
+      document.getElementById("success-box").classList.remove("hidden");
+      document.getElementById("next-btn").classList.toggle("hidden", idx >= LEVELS.length - 1);
+    } else {
+      editor.setValue(lv.starter);
+      editor.updateOptions({ readOnly: false });
+      runBtn.disabled = false;
+      runLabel.textContent = "▶ Exécuter";
+      runBtn.classList.replace("bg-gray-400", "bg-green-600");
+      runBtn.classList.replace("hover:bg-gray-400", "hover:bg-green-700");
+    }
+  }
+
+  updateProgress();
+  renderBoard(); // renderBoard appelle positionRobot via setTimeout
+}
+
+function updateProgress() {
+  const done = completedLevels.size;
+  document.getElementById("progress-text").textContent = `${done} / 10`;
+  document.getElementById("progress-bar").style.width = `${done * 10}%`;
+}
+
+// ══════════════════════════════════════════════════════
+//  PYODIDE
+// ══════════════════════════════════════════════════════
+async function initPyodide() {
+  pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/" });
+  pyReady = true;
+  const st = document.getElementById("pyodide-status");
+  st.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-green-400"></span> Python prêt !';
+  document.getElementById("run-btn").disabled = false;
+}
+
+async function runCode(code) {
+  const wrapped = `
+import sys, builtins
+from io import StringIO
+sys.stdout = StringIO()
+_err = ""
+try:
+    exec(${JSON.stringify(code)})
+except Exception as e:
+    _err = str(e)
+_out = sys.stdout.getvalue()
+sys.stdout = sys.__stdout__
+(_out, _err)
+`;
+  try {
+    const result = await pyodide.runPythonAsync(wrapped);
+    return [result.get(0) || "", result.get(1) || ""];
+  } catch(e) {
+    return ["", String(e)];
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  CONFETTI
+// ══════════════════════════════════════════════════════
+function spawnConfetti() {
+  const colors = ["#22c55e","#f59e0b","#3b82f6","#ec4899","#a855f7"];
+  for (let i = 0; i < 40; i++) {
+    const el = document.createElement("div");
+    el.className = "confetti-piece";
+    el.style.left = Math.random() * 100 + "vw";
+    el.style.top = "-20px";
+    el.style.background = colors[Math.floor(Math.random() * colors.length)];
+    el.style.animationDelay = Math.random() * 0.6 + "s";
+    el.style.width = (8 + Math.random() * 8) + "px";
+    el.style.height = (8 + Math.random() * 8) + "px";
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2000);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  LOGIN
+// ══════════════════════════════════════════════════════
+document.getElementById("login-btn").addEventListener("click", () => {
+  const name = document.getElementById("login-name").value.trim();
+  if (!name) return;
+  studentName = name;
+  document.getElementById("student-display").textContent = `👤 ${name}`;
+  document.getElementById("student-display").classList.remove("hidden");
+  loadProgress();
+  document.getElementById("login-overlay").style.display = "none";
+  showLevel(currentLevel);
+});
+
+document.getElementById("login-name").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("login-btn").click();
+});
+
+// ══════════════════════════════════════════════════════
+//  MONACO
+// ══════════════════════════════════════════════════════
+require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs" } });
+require(["vs/editor/editor.main"], () => {
+  editor = monaco.editor.create(document.getElementById("editor-container"), {
+    value: LEVELS[0].starter,
+    language: "python",
+    theme: "vs-light",
+    fontSize: 14,
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    lineNumbers: "on",
+    automaticLayout: true,
+    tabSize: 4,
+    wordWrap: "on",
+  });
+});
+
+// ══════════════════════════════════════════════════════
+//  BUTTONS
+// ══════════════════════════════════════════════════════
+document.getElementById("run-btn").addEventListener("click", async () => {
+  if (!pyReady) return;
+  if (completedLevels.has(currentLevel)) return;
+  const btn = document.getElementById("run-btn");
+  const label = document.getElementById("run-label");
+  btn.disabled = true;
+  label.textContent = "⏳ Exécution…";
+
+  const code = editor.getValue();
+  const [output, err] = await runCode(code);
+  const outBox = document.getElementById("output-box");
+
+  if (err) {
+    outBox.textContent = "ERREUR : " + err;
+    outBox.className = "error";
+    showError("Ton code contient une erreur Python.");
+    btn.disabled = false; label.textContent = "▶ Exécuter"; return;
+  }
+
+  outBox.textContent = output || "(aucune sortie)";
+  outBox.className = "";
+
+  const lv = LEVELS[currentLevel];
+  if (lv.validate(output)) {
+    // Success !
+    completedLevels.add(currentLevel);
+    saveProgress();
+    spawnConfetti();
+
+    // Robot celebrate
+    const robot = document.getElementById("robpy-robot");
+    if (robot) {
+      robot.classList.remove("robot-idle", "robot-walk");
+      robot.classList.add("robot-celebrate");
+      setTimeout(() => { robot.classList.remove("robot-celebrate"); robot.classList.add("robot-idle"); }, 1600);
+    }
+
+    document.getElementById("success-msg").textContent = lv.success;
+    const sbox = document.getElementById("success-box");
+    sbox.classList.remove("hidden");
+    document.getElementById("error-box").classList.add("hidden");
+    document.getElementById("hint-box").classList.add("hidden");
+    document.getElementById("next-btn").classList.toggle("hidden", currentLevel >= LEVELS.length - 1);
+    document.body.classList.add("flash");
+    setTimeout(() => sbox.scrollIntoView({ behavior: "smooth", block: "center" }), 200);
+    setTimeout(() => document.body.classList.remove("flash"), 700);
+
+    editor.updateOptions({ readOnly: true });
+    renderBoard();
+    updateProgress();
+
+    if (currentLevel >= LEVELS.length - 1) {
+      setTimeout(() => document.getElementById("completion-screen").classList.add("show"), 1500);
+    }
+  } else {
+    showError("La sortie ne correspond pas encore à l'objectif. Vérifie l'orthographe et les espaces !");
+  }
+
+  btn.disabled = false; label.textContent = "▶ Exécuter";
+});
+
+function showError(msg) {
+  document.getElementById("error-msg").textContent = msg;
+  document.getElementById("error-box").classList.remove("hidden");
+  document.getElementById("success-box").classList.add("hidden");
+}
+
+document.getElementById("next-btn").addEventListener("click", () => {
+  if (currentLevel < LEVELS.length - 1) {
+    currentLevel++;
+    saveProgress();
+    showLevel(currentLevel); // positionRobot(animate=true) appelé dans renderBoard
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+});
+
+document.getElementById("hint-btn").addEventListener("click", () => {
+  document.getElementById("hint-text").textContent = LEVELS[currentLevel].hint;
+  document.getElementById("hint-box").classList.remove("hidden");
+  document.getElementById("hint-btn").classList.add("hidden");
+});
+
+document.getElementById("reset-btn").addEventListener("click", () => {
+  if (completedLevels.has(currentLevel)) return;
+  if (confirm("Réinitialiser le code de ce niveau ?")) {
+    editor.setValue(LEVELS[currentLevel].starter);
+    document.getElementById("hint-box").classList.add("hidden");
+    document.getElementById("hint-btn").classList.remove("hidden");
+    document.getElementById("error-box").classList.add("hidden");
+  }
+});
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+document.getElementById("run-btn").disabled = true;
+initPyodide();
+renderBoard();
+</script>
+</body>
+</html>
