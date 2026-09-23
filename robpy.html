@@ -2,8 +2,26 @@
 const URL='https://hxfdlujpedxuumqfewvn.supabase.co', KEY='sb_publishable_RMv9HFpnXdId5VxUVy_sDg_Kq57S_lF';
 const sb=supabase.createClient(URL,KEY), frame=document.getElementById('robpy'), status=document.getElementById('sync');
 const name=localStorage.getItem('ps_name')||'', classe=localStorage.getItem('ps_class')||'';let user=null,last='';
+
+// Indices volontairement incomplets : ils orientent sans donner le code à recopier.
+const SOFT_HINTS=[
+  'Utilise print() avec le texte demandé entre guillemets.',
+  'Crée d’abord deux variables R et I, puis utilise print() deux fois pour afficher leur contenu.',
+  'La loi d’Ohm donne la tension à partir de R et I. Stocke le résultat du produit dans U, puis affiche U.',
+  'Une f-string permet d’insérer la valeur d’une variable dans une phrase avec des accolades { }.',
+  'Teste la condition U > 5 avec if. Prévois aussi le cas contraire avec else.',
+  'Il faut trois cas. Commence par tester la tension faible, puis utilise elif pour la zone nominale et else pour le dernier cas.',
+  'Une boucle for avec range() évite d’écrire cinq fois la même instruction. Fais varier un numéro de 1 à 5.',
+  'Utilise une boucle while : répète la division tant que U n’est pas encore descendue sous la valeur demandée. Pense à compter les tours.',
+  'Définis une fonction avec deux paramètres R et I. Elle doit renvoyer leur produit avec return.',
+  'Réutilise les variables R, I, U et P, puis construis la phrase finale avec une f-string. Vérifie soigneusement les unités et l’affichage attendu.'
+];
+
 async function init(){const {data}=await sb.auth.getSession();user=data.session?.user||null;if(!user){status.textContent='⚠️ Reviens par la plateforme pour te connecter';return}status.textContent='☁️ Synchronisation active';await pull();setInterval(sync,1000)}
 async function pull(){const {data,error}=await sb.from('student_progress').select('robpy_progress').eq('user_id',user.id).maybeSingle();if(error)return;const cloud=Number(data?.robpy_progress)||0;let local=[];try{local=JSON.parse(localStorage.getItem(`robpy_${name}`)||'[]')}catch{}const n=Math.max(cloud,local.length);localStorage.setItem(`robpy_${name}`,JSON.stringify(Array.from({length:Math.min(n,10)},(_,i)=>i)));last=localStorage.getItem(`robpy_${name}`)||'[]'}
 async function sync(){if(!user||!name||!classe)return;const raw=localStorage.getItem(`robpy_${name}`)||'[]';if(raw===last)return;last=raw;let levels=[];try{levels=JSON.parse(raw)}catch{}status.textContent='☁️ Sauvegarde…';const {error}=await sb.from('student_progress').update({robpy_progress:Math.min(levels.length,10)}).eq('user_id',user.id);status.textContent=error?'⚠️ Sauvegarde locale':'☁️ Sauvegardé'}
-frame.addEventListener('load',()=>{try{const d=frame.contentDocument;if(name){const inp=d.getElementById('login-name');if(inp){inp.value=name;setTimeout(()=>d.getElementById('login-btn')?.click(),150)}}}catch(e){console.error(e)}});window.addEventListener('beforeunload',sync);init();
+frame.addEventListener('load',()=>{try{const d=frame.contentDocument;if(name){const inp=d.getElementById('login-name');if(inp){inp.value=name;setTimeout(()=>d.getElementById('login-btn')?.click(),150)}}
+  // Remplace l’indice-solution du tutoriel par un indice pédagogique plus léger.
+  d.addEventListener('click',e=>{if(e.target && e.target.id==='hint-btn'){setTimeout(()=>{const badge=d.getElementById('level-badge')?.textContent||'';const m=badge.match(/(\d+)/);const idx=m?Number(m[1])-1:0;const hint=d.getElementById('hint-text');if(hint)hint.textContent=SOFT_HINTS[idx]||'Relis l’objectif et décompose le problème en petites étapes.';},0)}},true);
+}catch(e){console.error(e)}});window.addEventListener('beforeunload',sync);init();
 </script></body></html>
