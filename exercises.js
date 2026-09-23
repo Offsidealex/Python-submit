@@ -1,18 +1,18 @@
+// Charge la synchronisation Supabase sans modifier eleve.html.
+(() => { const s=document.createElement('script'); s.src='supabase-sync.js'; document.head.appendChild(s); })();
+
 // Catalogue autonome des exercices — aucune dépendance à Render.
-// Les TP suivants pourront être ajoutés ici sans modifier eleve.html.
 window.PYTHON_EXERCISES = [
   {id:'tp1q1',tp:'TP1',title:'Q1 — Loi d’Ohm',description:'Contexte : loi d’Ohm — U = R × I\n\nDéclarer R = 470 et I = 0.02, calculer la tension U = R * I et l’afficher.\nVérifier que U = 9.4 V.\n\nSortie attendue :\nTension U = 9.4 V',tests:[{expected:'Tension U = 9.4 V'}]},
   {id:'tp1q2',tp:'TP1',title:'Q2 — Types de données',description:'Utiliser type() pour afficher le type de R = 470, I = 0.02 et d’une variable nom = "Résistance".\n\nSortie attendue :\n<class \'int\'>\n<class \'float\'>\n<class \'str\'>',tests:[{expected:"<class 'int'>\n<class 'float'>\n<class 'str'>"}]},
   {id:'tp1q3',tp:'TP1',title:'Q3 — Entrées utilisateur',description:'Demander R et I à l’utilisateur avec input(), les convertir en float(), calculer U = R * I et l’afficher.\n\nTest : R=470 et I=0.02.\nSortie attendue :\nTension U = 9.4 V',tests:[{inputs:['470','0.02'],expected:'Tension U = 9.4 V'}]},
   {id:'tp1q4',tp:'TP1',title:'Q4 — Puissance',description:'Avec R = 470 et I = 0.02, calculer U = R * I puis P = U * I.\nAfficher P arrondi à 4 décimales avec l’unité watts.\n\nSortie attendue :\nPuissance P = 0.188 watts',tests:[{expected:'Puissance P = 0.188 watts'}]},
   {id:'tp1q5',tp:'TP1',title:'Q5 — Résumé avec f-string',description:'Avec R = 470, I = 0.02, U = R * I et P = U * I, afficher un résumé complet avec une f-string.\n\nSortie attendue :\nR = 470 Ω | I = 0.02 A | U = 9.4 V | P = 0.188 W',tests:[{expected:'R = 470 Ω | I = 0.02 A | U = 9.4 V | P = 0.188 W'}]},
-
   {id:'tp2q1',tp:'TP2',title:'Q1 — LED',description:'Une LED est passante si U > 2.0 V. Demander U à l’utilisateur et afficher "LED allumée" ou "LED éteinte".',tests:[{inputs:['3.0'],expected:'LED allumée'},{inputs:['1.5'],expected:'LED éteinte'}]},
   {id:'tp2q2',tp:'TP2',title:'Q2 — Seuils de tension',description:'Classifier la tension avec if/elif/else :\n- faible si U < 4.5 V\n- nominale si 4.5 <= U <= 5.5 V\n- élevée si U > 5.5 V\n\nDemander U avec input().',tests:[{inputs:['4.0'],expected:'Tension faible'},{inputs:['5.0'],expected:'Tension nominale'},{inputs:['6.0'],expected:'Tension élevée'}]},
   {id:'tp2q3',tp:'TP2',title:'Q3 — Condition AND',description:'Un système se déclenche si U > 12 V ET I > 2 A. Tester directement dans le code :\nU=15, I=3 ; U=10, I=3 ; U=15, I=1.\n\nSortie attendue :\nU=15 I=3 : Système déclenché\nU=10 I=3 : Système non déclenché\nU=15 I=1 : Système non déclenché',tests:[{expected:'U=15 I=3 : Système déclenché\nU=10 I=3 : Système non déclenché\nU=15 I=1 : Système non déclenché'}]},
   {id:'tp2q4',tp:'TP2',title:'Q4 — Table de vérité AND',description:'Afficher la table de vérité d’une porte AND pour A, B dans {0, 1} avec deux boucles for imbriquées.\n\nSortie attendue :\nA=0 B=0 : 0\nA=0 B=1 : 0\nA=1 B=0 : 0\nA=1 B=1 : 1',tests:[{expected:'A=0 B=0 : 0\nA=0 B=1 : 0\nA=1 B=0 : 0\nA=1 B=1 : 1'}]},
   {id:'tp2q5',tp:'TP2',title:'Q5 — Thermostat',description:'Thermostat :\n- T > 22°C : "Chauffage coupé"\n- T < 18°C : "Chauffage allumé"\n- sinon : "Maintien"\n\nDemander T avec input().',tests:[{inputs:['25'],expected:'Chauffage coupé'},{inputs:['15'],expected:'Chauffage allumé'},{inputs:['20'],expected:'Maintien'}]},
-
   {id:'tp3q1',tp:'TP3',title:'Q1 — Capital placé',description:'Un capital de 20 000 € est placé à 6 % par an. Avec une boucle for, afficher le capital à la fin de chacune des 20 premières années, arrondi à l’unité.\n\nDébut attendu :\nAnnée 1 : 21200 €\nAnnée 2 : 22472 €',tests:[]},
   {id:'tp3q2',tp:'TP3',title:'Q2 — Boucle while',description:'Avec une boucle while, diviser U = 100 V par 2 à chaque tour jusqu’à ce que U < 1 V. Afficher le nombre d’itérations nécessaires.',tests:[]},
   {id:'tp3q3',tp:'TP3',title:'Q3 — Somme de 1 à 200',description:'Avec une boucle for, calculer la somme 1 + 2 + ... + 200. Vérifier le résultat avec n*(n+1)//2 et afficher les deux valeurs.',tests:[]},
