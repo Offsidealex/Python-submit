@@ -212,7 +212,7 @@
 <body class="bg-gray-100 min-h-screen">
 
 <!-- ══ Login ══ -->
-<div id="login-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-50">
+<div id="login-overlay" style="display:none" class="fixed inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-50">
   <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center space-y-5">
     <div class="text-7xl animate-bounce">🤖</div>
     <h1 class="text-2xl font-extrabold text-gray-800">ROBPY</h1>
@@ -880,6 +880,18 @@ document.getElementById("login-btn").addEventListener("click", () => {
 document.getElementById("login-name").addEventListener("keydown", e => {
   if (e.key === "Enter") document.getElementById("login-btn").click();
 });
+
+// Auto-identification depuis Python Submit : aucune seconde connexion ROBPY.
+(function autoLoginFromPlatform(){
+  const name=(localStorage.getItem('ps_name')||'').trim();
+  if(!name) return;
+  studentName=name;
+  document.getElementById('student-display').textContent='👤 '+name;
+  document.getElementById('student-display').classList.remove('hidden');
+  document.getElementById('login-overlay').style.display='none';
+  loadProgress();
+  showLevel(currentLevel);
+})();
 
 // ══════════════════════════════════════════════════════
 //  MONACO
