@@ -211,22 +211,6 @@
 </head>
 <body class="bg-gray-100 min-h-screen">
 
-<!-- ══ Login ══ -->
-<div id="login-overlay" style="display:none" class="fixed inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-50">
-  <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center space-y-5">
-    <div class="text-7xl animate-bounce">🤖</div>
-    <h1 class="text-2xl font-extrabold text-gray-800">ROBPY</h1>
-    <p class="text-gray-500 text-sm">Un circuit est en panne ! Aide ROBPY à le réparer en apprenant Python, une commande à la fois.</p>
-    <input id="login-name" type="text" placeholder="Ton prénom et nom"
-      class="w-full border-2 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none" />
-    <button id="login-btn"
-      class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold text-sm transition">
-      🚀 Démarrer la mission !
-    </button>
-    <a href="index.html" class="block text-xs text-gray-400 hover:text-gray-600">← Retour à la plateforme</a>
-  </div>
-</div>
-
 <!-- ══ Completion screen ══ -->
 <div id="completion-screen">
   <div class="bg-white rounded-2xl shadow-2xl p-10 text-center max-w-md space-y-4">
@@ -862,24 +846,6 @@ function spawnConfetti() {
     setTimeout(() => el.remove(), 2000);
   }
 }
-
-// ══════════════════════════════════════════════════════
-//  LOGIN
-// ══════════════════════════════════════════════════════
-document.getElementById("login-btn").addEventListener("click", () => {
-  const name = document.getElementById("login-name").value.trim();
-  if (!name) return;
-  studentName = name;
-  document.getElementById("student-display").textContent = `👤 ${name}`;
-  document.getElementById("student-display").classList.remove("hidden");
-  loadProgress();
-  document.getElementById("login-overlay").style.display = "none";
-  showLevel(currentLevel);
-});
-
-document.getElementById("login-name").addEventListener("keydown", e => {
-  if (e.key === "Enter") document.getElementById("login-btn").click();
-});
 
 // Auto-identification depuis Python Submit : aucune seconde connexion ROBPY.
 (function autoLoginFromPlatform(){
