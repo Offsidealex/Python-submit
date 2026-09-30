@@ -281,6 +281,274 @@ def seed_exercises():
                 "..."
             ),
         },
+        # ── TP4 : Fonctions ──
+        {
+            "title": "TP4 - Q1",
+            "description": (
+                "Écrire une fonction loi_ohm(R, I) qui retourne la tension U = R * I.\n"
+                "Appeler la fonction avec R = 470 Ω et I = 0.02 A puis afficher le résultat.\n\n"
+                "Sortie attendue :\nU = 9.4 V"
+            ),
+        },
+        {
+            "title": "TP4 - Q2",
+            "description": (
+                "Écrire une fonction puissance(U, I) qui retourne P = U * I.\n"
+                "Tester avec U = 12 V et I = 1.5 A puis afficher P.\n\n"
+                "Sortie attendue :\nP = 18.0 W"
+            ),
+        },
+        {
+            "title": "TP4 - Q3",
+            "description": (
+                "Écrire une fonction diviseur(Ue, R1, R2) qui retourne la tension de sortie "
+                "Us = Ue * R2 / (R1 + R2).\n"
+                "Tester avec Ue=12, R1=1000 et R2=2000.\n\n"
+                "Sortie attendue :\nUs = 8.0 V"
+            ),
+        },
+        {
+            "title": "TP4 - Q4",
+            "description": (
+                "Écrire une fonction resistance_led(Ualim, Uled=2.0, I=0.02) qui retourne "
+                "la résistance R = (Ualim - Uled) / I.\n"
+                "Utiliser les valeurs par défaut avec Ualim=5 puis afficher R.\n\n"
+                "Sortie attendue :\nR = 150.0 ohms"
+            ),
+        },
+        {
+            "title": "TP4 - Q5",
+            "description": (
+                "Écrire une fonction mesures(R, I) qui retourne trois valeurs : U, P et E, "
+                "avec U=R*I, P=U*I et E=P*3600 (énergie consommée en une heure).\n"
+                "Tester avec R=100 et I=0.1 et afficher les trois résultats."
+            ),
+        },
+
+        # ── TP5 : Listes et séries de mesures ──
+        {
+            "title": "TP5 - Q1",
+            "description": (
+                "Créer la liste mesures = [4.98, 5.02, 4.95, 5.10, 4.88].\n"
+                "Afficher la première mesure, la dernière mesure et le nombre de mesures."
+            ),
+        },
+        {
+            "title": "TP5 - Q2",
+            "description": (
+                "Reprendre la liste mesures. Ajouter 5.05 avec append(), puis afficher la liste complète "
+                "et sa nouvelle longueur."
+            ),
+        },
+        {
+            "title": "TP5 - Q3",
+            "description": (
+                "Avec mesures = [4.98, 5.02, 4.95, 5.10, 4.88], afficher la valeur minimale, "
+                "la valeur maximale et la moyenne arrondie à 3 décimales."
+            ),
+        },
+        {
+            "title": "TP5 - Q4",
+            "description": (
+                "Parcourir mesures = [4.98, 5.02, 4.95, 5.10, 4.88] avec une boucle for.\n"
+                "Afficher uniquement les mesures strictement inférieures à 5.0 V."
+            ),
+        },
+        {
+            "title": "TP5 - Q5",
+            "description": (
+                "À partir de mesures = [4.98, 5.02, 4.95, 5.10, 4.88], créer une nouvelle liste "
+                "contenant les écarts absolus à 5.0 V. Afficher cette liste puis l'écart maximal."
+            ),
+        },
+
+        # ── TP6 : Chaînes et trames série ──
+        {
+            "title": "TP6 - Q1",
+            "description": (
+                "On reçoit la trame texte \"START:12.5:STOP\".\n"
+                "Découper la trame avec split(':') et afficher les trois éléments obtenus."
+            ),
+        },
+        {
+            "title": "TP6 - Q2",
+            "description": (
+                "Avec trame = \"START:12.5:STOP\", extraire la valeur 12.5, la convertir en float "
+                "et afficher : Valeur = 12.5 V."
+            ),
+        },
+        {
+            "title": "TP6 - Q3",
+            "description": (
+                "Demander une trame à l'utilisateur. Vérifier avec startswith() qu'elle commence par "
+                "\"START\" et afficher \"Trame valide\" ou \"Trame invalide\"."
+            ),
+        },
+        {
+            "title": "TP6 - Q4",
+            "description": (
+                "Nettoyer la chaîne \"  temp:23.7  \" avec strip(), la convertir en majuscules "
+                "puis afficher le résultat."
+            ),
+        },
+        {
+            "title": "TP6 - Q5",
+            "description": (
+                "Analyser la trame \"CAPTEUR:TEMP:23.7:C\" avec split(':').\n"
+                "Afficher avec une f-string : Capteur TEMP : 23.7 C."
+            ),
+        },
+
+        # ── TP7 : Dictionnaires et composants ──
+        {
+            "title": "TP7 - Q1",
+            "description": (
+                "Créer le dictionnaire composant = {'reference':'R470', 'valeur':470, 'tolerance':5}.\n"
+                "Afficher séparément la référence, la valeur et la tolérance."
+            ),
+        },
+        {
+            "title": "TP7 - Q2",
+            "description": (
+                "Modifier la tolérance du composant R470 de 5 à 1 %, puis ajouter la clé "
+                "'puissance' avec la valeur 0.25. Afficher le dictionnaire."
+            ),
+        },
+        {
+            "title": "TP7 - Q3",
+            "description": (
+                "Parcourir un dictionnaire de composant avec items() et afficher chaque clé et sa valeur "
+                "sous la forme : cle = valeur."
+            ),
+        },
+        {
+            "title": "TP7 - Q4",
+            "description": (
+                "Créer un catalogue contenant R470 (470 Ω), R1K (1000 Ω) et R2K2 (2200 Ω).\n"
+                "Demander une référence à l'utilisateur et afficher sa valeur si elle existe, "
+                "sinon afficher \"Référence inconnue\"."
+            ),
+        },
+        {
+            "title": "TP7 - Q5",
+            "description": (
+                "Créer un dictionnaire imbriqué pour trois capteurs avec leur type et leur valeur.\n"
+                "Parcourir le dictionnaire et afficher pour chaque capteur son nom, son type et sa valeur."
+            ),
+        },
+
+        # ── TP8 : Fichiers et CSV ──
+        {
+            "title": "TP8 - Q1",
+            "description": (
+                "Créer un fichier mesures.txt avec with open(..., 'w') et y écrire les valeurs "
+                "5.02, 4.98 et 5.01, une valeur par ligne. Puis afficher \"Fichier créé\"."
+            ),
+        },
+        {
+            "title": "TP8 - Q2",
+            "description": (
+                "Lire mesures.txt avec with open(..., 'r') et afficher chaque ligne sans ligne vide "
+                "supplémentaire en utilisant strip()."
+            ),
+        },
+        {
+            "title": "TP8 - Q3",
+            "description": (
+                "Lire les nombres contenus dans mesures.txt, les convertir en float et calculer leur moyenne. "
+                "Afficher la moyenne arrondie à 3 décimales."
+            ),
+        },
+        {
+            "title": "TP8 - Q4",
+            "description": (
+                "Créer mesures.csv avec le module csv. Écrire l'en-tête temps,tension puis les lignes "
+                "0,5.0 ; 1,5.1 ; 2,4.9. Relire le fichier et afficher son contenu."
+            ),
+        },
+        {
+            "title": "TP8 - Q5",
+            "description": (
+                "Tenter d'ouvrir capteur.txt. Utiliser try/except FileNotFoundError pour afficher "
+                "\"Fichier introuvable\" si le fichier n'existe pas."
+            ),
+        },
+
+        # ── TP9 : NumPy et visualisation de signaux ──
+        {
+            "title": "TP9 - Q1",
+            "description": (
+                "Importer numpy. Créer avec np.linspace un vecteur t allant de 0 à 0.02 s contenant "
+                "101 points. Afficher le nombre de points, la première et la dernière valeur."
+            ),
+        },
+        {
+            "title": "TP9 - Q2",
+            "description": (
+                "Avec numpy, générer u(t)=5*sin(2*pi*50*t) sur l'intervalle 0 à 0.04 s avec 1000 points. "
+                "Afficher les valeurs minimale et maximale arrondies à 2 décimales."
+            ),
+        },
+        {
+            "title": "TP9 - Q3",
+            "description": (
+                "Tracer avec matplotlib le signal u(t)=5*sin(2*pi*50*t) entre 0 et 0.04 s. "
+                "Ajouter un titre, les noms des axes et une grille, puis afficher le graphique."
+            ),
+        },
+        {
+            "title": "TP9 - Q4",
+            "description": (
+                "Tracer sur le même graphique deux signaux sinusoïdaux de fréquence 50 Hz : "
+                "u1 d'amplitude 5 V et u2 d'amplitude 2 V. Ajouter une légende."
+            ),
+        },
+        {
+            "title": "TP9 - Q5",
+            "description": (
+                "Générer un signal sinusoïdal de fréquence 100 Hz et amplitude 3 V sur 0.02 s. "
+                "Calculer avec numpy sa valeur efficace sqrt(mean(u**2)) et l'afficher arrondie à 3 décimales."
+            ),
+        },
+
+        # ── TP10 : Projet de synthèse CIEL ──
+        {
+            "title": "TP10 - Q1",
+            "description": (
+                "Créer une fonction menu() qui affiche : 0-Quitter, 1-Loi d'Ohm, "
+                "2-Diviseur de tension, 3-Résistance LED, puis retourne le choix saisi par l'utilisateur."
+            ),
+        },
+        {
+            "title": "TP10 - Q2",
+            "description": (
+                "Créer les fonctions loi_ohm(R,I), diviseur(Ue,R1,R2) et resistance_led(Ualim,Uled,I). "
+                "Tester chacune avec un jeu de valeurs et afficher les résultats avec leurs unités."
+            ),
+        },
+        {
+            "title": "TP10 - Q3",
+            "description": (
+                "Construire une boucle while qui affiche le menu jusqu'au choix 0. "
+                "Pour les choix 1 à 3, demander les valeurs nécessaires et appeler la bonne fonction. "
+                "Afficher \"Choix invalide\" pour toute autre valeur."
+            ),
+        },
+        {
+            "title": "TP10 - Q4",
+            "description": (
+                "Ajouter à l'application un historique sous forme de liste. Après chaque calcul, "
+                "ajouter une chaîne décrivant le calcul et son résultat. Au moment de quitter, afficher l'historique."
+            ),
+        },
+        {
+            "title": "TP10 - Q5",
+            "description": (
+                "Projet final : compléter l'application pour enregistrer l'historique dans resultats.txt "
+                "au moment de quitter. Le programme doit utiliser des fonctions, une boucle, des conditions, "
+                "une liste, des f-strings et un fichier. Structurer et commenter clairement le code."
+            ),
+        },
     ]
     conn = get_db()
     cur = conn.cursor()
