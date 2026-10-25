@@ -522,19 +522,9 @@ let editor = null;
 let pyReady = false;
 let robot_placed = false; // premier placement = pas de transition
 
-function storageKey() { return `robpy_${studentName}`; }
-
-function saveProgress() {
-  localStorage.setItem(storageKey(), JSON.stringify([...completedLevels]));
-  localStorage.setItem(`robpy_level_${studentName}`, currentLevel);
-}
-
-function loadProgress() {
-  const saved = localStorage.getItem(storageKey());
-  if (saved) completedLevels = new Set(JSON.parse(saved));
-  const lvl = localStorage.getItem(`robpy_level_${studentName}`);
-  if (lvl !== null) currentLevel = parseInt(lvl);
-}
+// Parcours autonome : progression uniquement en mémoire pendant la séance.
+function saveProgress() {}
+function loadProgress() {}
 
 // ══════════════════════════════════════════════════════
 //  CIRCUIT BOARD  (positionnement absolu + SVG)
@@ -864,17 +854,6 @@ function spawnConfetti() {
   }
 }
 
-// Auto-identification depuis Python Submit : aucune seconde connexion ROBPY.
-(function autoLoginFromPlatform(){
-  const name=(localStorage.getItem('ps_name')||'').trim();
-  if(!name) return;
-  studentName=name;
-  document.getElementById('student-display').textContent='👤 '+name;
-  document.getElementById('student-display').classList.remove('hidden');
-  loadProgress();
-  showLevel(currentLevel);
-})();
-
 // ══════════════════════════════════════════════════════
 //  MONACO
 // ══════════════════════════════════════════════════════
@@ -992,6 +971,8 @@ document.getElementById("reset-btn").addEventListener("click", () => {
 // ══════════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════════
+// Chaque ouverture démarre une nouvelle mission, sans compte ni reprise.
+studentName = 'Élève';
 document.getElementById("run-btn").disabled = true;
 initPyodide();
 renderBoard();
