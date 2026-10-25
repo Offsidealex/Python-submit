@@ -207,7 +207,24 @@
       align-items: center; justify-content: center;
     }
     #completion-screen.show { display: flex; }
-  </style>
+  
+/* Atelier Maths — identité ROBPY vert */
+:root{--atelier-navy:#0b315b;--atelier-green:#16a34a}
+body{background:#edf5fc}
+.atelier-brandbar{height:4px;background:var(--atelier-green)}
+header.robpy-header{background:var(--atelier-navy)!important;border-bottom:0}
+header.robpy-header h1{color:#86efac!important}
+header.robpy-header .text-gray-500{color:#c5d8eb!important}
+header.robpy-header .text-gray-400{color:#d3e3f3!important}
+.robpy-header-logo{display:grid;place-items:center;width:43px;height:43px;border-radius:12px;background:#e6f8ed;font-size:1.55rem}
+.robpy-header-sub{font-size:.72rem;color:#c5d8eb}
+#login-overlay{background:rgba(7,30,56,.95)!important}
+#login-overlay>div{border-top:5px solid var(--atelier-green)}
+#login-btn{background:#15803d!important}
+#login-btn:hover{background:#166534!important}
+#completion-screen>div{border-top:5px solid var(--atelier-green)}
+@media(max-width:640px){header.robpy-header{gap:.5rem;flex-wrap:wrap;padding:.7rem!important}header.robpy-header>div:last-child{gap:.65rem!important;flex-wrap:wrap}.robpy-header-logo{width:37px;height:37px}}
+</style>
 </head>
 <body class="bg-gray-100 min-h-screen">
 
@@ -241,12 +258,12 @@
 </div>
 
 <!-- ══ Header ══ -->
-<header class="bg-gray-900 text-white px-5 py-3 flex items-center justify-between sticky top-0 z-10 shadow">
+<header class="robpy-header bg-gray-900 text-white px-5 py-3 flex items-center justify-between sticky top-0 z-10 shadow">
   <div class="flex items-center gap-3">
-    <span class="text-2xl">🤖</span>
+    <span class="robpy-header-logo" aria-hidden="true">🤖</span>
     <div>
       <h1 class="font-extrabold text-green-400 leading-tight">ROBPY</h1>
-      <p class="text-xs text-gray-500">Répare le circuit</p>
+      <p class="robpy-header-sub">Atelier Maths · Répare le circuit</p>
     </div>
   </div>
   <div class="flex items-center gap-6">
@@ -261,6 +278,7 @@
     <a href="index.html" class="text-xs text-gray-400 hover:text-white transition">← Plateforme</a>
   </div>
 </header>
+<div class="atelier-brandbar" aria-hidden="true"></div>
 
 <!-- ══ Main ══ -->
 <main class="max-w-7xl mx-auto px-4 py-5">
