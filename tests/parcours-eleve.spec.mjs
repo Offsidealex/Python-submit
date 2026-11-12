@@ -7,7 +7,7 @@ const sandbox = { window: {} };
 vm.runInNewContext(fs.readFileSync('exercises.js', 'utf8'), sandbox);
 const exercises = sandbox.window.PYTHON_EXERCISES;
 
-const monacoStub = String.raw\`
+const monacoStub = String.raw`
 window.require = (modules, callback) => callback();
 window.require.config = () => {};
 window.monaco = {
@@ -21,9 +21,9 @@ window.monaco = {
       };
     }
   }
-};\`;
+};`;
 
-const supabaseStub = String.raw\`
+const supabaseStub = String.raw`
 window.supabase = {
   createClient: () => ({
     auth: {
@@ -46,7 +46,7 @@ window.supabase = {
       upsert: async () => ({ error: null })
     })
   })
-};\`;
+};`;
 
 test.beforeEach(async ({ page }) => {
   // Zéro requête vers Supabase réel ; les CDN non essentiels sont simulés.
@@ -99,7 +99,7 @@ test('50 exercices, mauvaise réponse, déblocage progressif et conservation loc
     });
     await page.locator('#test').click();
     await expect(page.locator('#stateBadge')).toHaveText('✅ Validé');
-    await expect(page.locator('#progressText')).toHaveText(\`\${i + 1} / 50\`);
+    await expect(page.locator('#progressText')).toHaveText(`${i + 1} / 50`);
 
     if (i + 1 < exercises.length) {
       await expect(page.locator('#exerciseTitle')).toContainText(exercises[i + 1].title);
