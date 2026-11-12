@@ -21,7 +21,7 @@ permissions:
 jobs:
   exercices:
     name: 50 exercices Python — solutions et mauvaises réponses
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -46,7 +46,7 @@ jobs:
 
   navigateur:
     name: Parcours réel Chromium — élève virtuel isolé
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
