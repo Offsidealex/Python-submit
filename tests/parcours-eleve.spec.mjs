@@ -90,6 +90,9 @@ test('50 exercices, mauvaise réponse, déblocage progressif et conservation loc
     // Simule les sorties validées. Le calcul Python réel est vérifié par
     // tests/virtual_student.py ; ici l'objectif est de tester la navigation.
     await page.evaluate(() => {
+      if (current().id === 'tp3q4') {
+        editor.setValue('import random\nn=0\nwhile True:\n    a=random.randint(1,6)\n    b=random.randint(1,6)\n    n+=1\n    if a==b: break\nprint(n)');
+      }
       let testIndex = 0;
       window.execute = async () => {
         const currentExercise = current();
