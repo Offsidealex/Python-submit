@@ -107,6 +107,7 @@ test('50 exercices, mauvaise réponse, déblocage progressif et conservation loc
       };
     });
     await page.locator('#test').click();
+    console.log('Élève virtuel', (i + 1) + '/50', ex.id, 'résultat:', (await page.locator('#tests').textContent() ?? '').slice(0,220));
     await expect(page.locator('#stateBadge')).toHaveText('✅ Validé');
     await expect(page.locator('#progressText')).toHaveText(`${i + 1} / 50`);
 
