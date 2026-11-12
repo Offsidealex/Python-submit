@@ -24,3 +24,30 @@ npm run test:browser
 Pour consulter l'historique, ouvrir **GitHub > Actions > Élève virtuel — Python Submit** ; télécharger `rapport-50-exercices` et `rapport-parcours-navigateur` depuis l'exécution souhaitée.
 
 Les scripts ne changent ni le code d'un élève ni les lignes de la base. Ne jamais y introduire des identifiants Supabase réels.
+
+## Audit pédagogique V2
+
+Le script `audit_pedagogique.py` lance **plus de 300 scénarios**, couvrant les 50 exercices :
+solution de référence, variante syntaxique, sortie fausse, erreur Python, réponse codée en dur, méthodes alternatives pour TP1 à TP3, valeurs limites et vérification réelle des fichiers du TP8/TP10.
+
+Exécution locale :
+
+```bash
+python3 tests/audit_pedagogique.py
+```
+
+Deux rapports sont créés dans le dossier `tests/` :
+
+- `rapport-pedagogique.md` : bilan par TP et anomalies détaillées.
+- `rapport-pedagogique.json` : données structurées des scénarios.
+
+Les statuts **RISQUE**, **MANQUE** et **ALERTE** sont des résultats d'audit, pas des validations. Le workflow échoue en cas de **régression** du programme correct ou si le nombre de scénarios descend sous 250 ; une alerte pédagogique n'est pas volontairement traitée comme un échec technique.
+
+### Corrections déjà apportées au catalogue
+- TP1 Q3 : plusieurs couples de résistance/intensité, afin de détecter les réponses figées.
+- TP2 Q1, Q2 et Q5 : vérification des seuils exacts.
+- TP3 Q1 : contrôle des 20 montants, en tolérant deux conventions usuelles d'arrondi.
+- TP8 Q1 à Q5 et TP10 Q4 : la validation vérifie maintenant **l'existence et le contenu du fichier créé** dans la mémoire de Pyodide, au lieu de contrôler seulement le texte imprimé.
+
+### Limites de l'automatisation
+Une sortie correcte ne garantit pas toujours la qualité de l'algorithme (fonction demandée, boucle effective, dé, lecture réelle de fichier). Certaines exigences doivent être évaluées par des scénarios d'exécution supplémentaires ou par une analyse Python AST. Le navigateur Playwright simule les calculs et le cloud ; il ne remplace pas une évaluation pédagogique humaine ni un test réel de synchronisation Supabase.
