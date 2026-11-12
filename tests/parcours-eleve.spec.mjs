@@ -101,7 +101,7 @@ test('50 exercices, mauvaise réponse, déblocage progressif et conservation loc
             capital = Math.round(capital * 1.06);
             lignes.push('Année ' + an + ' : ' + capital + ' €');
           }
-          return lignes.join('\\n');
+          return lignes.join('\n');
         }
         return (tc.expected ?? '1').trim();
       };
