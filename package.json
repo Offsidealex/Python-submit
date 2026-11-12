@@ -1,0 +1,13 @@
+{
+  "name": "python-submit-virtual-student",
+  "private": true,
+  "description": "Tests du parcours élève Python Submit, sans accès à la base réelle",
+  "scripts": {
+    "test:exercises": "python3 tests/virtual_student.py",
+    "test:browser": "playwright test",
+    "test:all": "npm run test:exercises && npm run test:browser"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}
