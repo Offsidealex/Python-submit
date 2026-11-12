@@ -72,8 +72,18 @@ NEEDED = {
 }
 
 def accepted(ex, program):
-    return all(check(program, t, execute(program,t.get("inputs",[])))
-               for t in ex["tests"])
+    # Même logique que la plateforme : sortie + contenu des fichiers attendus.
+    # Exécution sur espace temporaire distinct à chaque test.
+    for t in ex["tests"]:
+        output=execute(program,t.get("inputs",[]))
+        if not check(program,t,output):
+            return False
+        if t.get("file"):
+            expected=t["file"]
+            result=check_file(program,expected["path"])
+            if not result["exists"] or result["content"].replace("\\r\\n","\\n").rstrip()!=expected["content"].replace("\\r\\n","\\n").rstrip():
+                return False
+    return True
 
 def syntax_variant(program):
     """Changement de syntaxe inoffensif, plutôt que simple ajout de commentaire."""
