@@ -94,7 +94,16 @@ test('50 exercices, mauvaise réponse, déblocage progressif et conservation loc
       window.execute = async () => {
         const currentExercise = current();
         const tc = currentExercise.tests[testIndex++];
-        if (tc.outputRegex && currentExercise.id === 'tp3q1') {\n          let capital = 20000;\n          const lignes = [];\n          for (let an = 1; an <= 20; an++) {\n            capital = Math.round(capital * 1.06);\n            lignes.push('Année ' + an + ' : ' + capital + ' €');\n          }\n          return lignes.join('\\n');\n        }\n        return (tc.expected ?? '1').trim();
+        if (tc.outputRegex && currentExercise.id === 'tp3q1') {
+          let capital = 20000;
+          const lignes = [];
+          for (let an = 1; an <= 20; an++) {
+            capital = Math.round(capital * 1.06);
+            lignes.push('Année ' + an + ' : ' + capital + ' €');
+          }
+          return lignes.join('\\n');
+        }
+        return (tc.expected ?? '1').trim();
       };
     });
     await page.locator('#test').click();
