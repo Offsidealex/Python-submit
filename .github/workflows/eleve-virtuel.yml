@@ -32,6 +32,21 @@ jobs:
           node-version: "22"
       - name: Exécuter l'élève virtuel
         run: python3 tests/virtual_student.py
+      - name: Audit pédagogique avancé (250+ scénarios)
+        run: python3 tests/audit_pedagogique.py
+      - name: Rapport pédagogique et données JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-pedagogique-v2
+          path: |
+            tests/rapport-pedagogique.md
+            tests/rapport-pedagogique.json
+          if-no-files-found: warn
+      - name: Résumé audit pédagogique
+        if: always()
+        run: |
+          if [ -f tests/rapport-pedagogique.md ]; then cat tests/rapport-pedagogique.md >> "$GITHUB_STEP_SUMMARY"; fi
       - name: Rapport exercices
         if: always()
         uses: actions/upload-artifact@v4
