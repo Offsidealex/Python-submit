@@ -1,0 +1,73 @@
+name: Élève virtuel — Python Submit
+
+on:
+  push:
+    branches: [github-pages-eleves]
+    paths:
+      - "eleve.html"
+      - "exercises.js"
+      - "supabase-sync.js"
+      - "tests/**"
+      - "playwright.config.mjs"
+      - "package.json"
+      - ".github/workflows/eleve-virtuel.yml"
+  pull_request:
+    branches: [github-pages-eleves]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exercices:
+    name: 50 exercices Python — solutions et mauvaises réponses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Exécuter l'élève virtuel
+        run: python3 tests/virtual_student.py
+      - name: Rapport exercices
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-50-exercices
+          path: tests/rapport-exercices.md
+          if-no-files-found: warn
+      - name: Résumé exercices
+        if: always()
+        run: |
+          if [ -f tests/rapport-exercices.md ]; then cat tests/rapport-exercices.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+  navigateur:
+    name: Parcours réel Chromium — élève virtuel isolé
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Installer Playwright
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Tester connexion, déblocages et persistance
+        run: npm run test:browser
+      - name: Rapport navigateur
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-parcours-navigateur
+          path: |
+            tests/rapport-navigateur/
+            test-results/
+          if-no-files-found: warn
