@@ -56,7 +56,7 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({ status: 200, contentType: 'application/javascript', body: monacoStub }));
   await page.route('**/pyodide.js', route =>
     route.fulfill({ status: 200, contentType: 'application/javascript',
-      body: 'window.loadPyodide = async () => ({ runPythonAsync: async () => {}, globals: { get: () => "" } });' }));
+      body: 'window.loadPyodide = async () => ({ runPythonAsync: async () => {}, globals: { get: () => "" }, FS: { _files: new Map(), unlink(p) { if(!this._files.has(p)) throw Error("ENOENT"); this._files.delete(p); }, readFile(p) { if(!this._files.has(p)) throw Error("ENOENT"); return this._files.get(p); }, writeFile(p, content) { this._files.set(p, content); } } });' }));
   await page.route('**/supabase-js@2', route =>
     route.fulfill({ status: 200, contentType: 'application/javascript', body: supabaseStub }));
   await page.route('https://*.supabase.co/**', route =>
@@ -106,6 +106,7 @@ test('50 exercices, mauvaise réponse, déblocage progressif et conservation loc
           }
           return lignes.join('\n');
         }
+        if (tc.file) pyodide.FS.writeFile(tc.file.path, tc.file.content);
         return (tc.expected ?? '1').trim();
       };
     });
@@ -139,4 +140,26 @@ test('l’accueil ne montre plus l’ancienne interface', async ({ page }) => {
   await expect(page).toHaveURL(/\/eleve\.html/);
   await expect(page.locator('#classe')).toBeVisible();
   await expect(page.locator('#name')).toBeVisible();
+});
+
+test('TP8 Q1 : le correcteur refuse un texte seul, même si un ancien fichier existe', async ({ page }) => {
+  await login(page);
+  await page.evaluate(() => {
+    currentId = 'tp8q1';
+    loadExercise();
+    renderMenu();
+    pyodide.FS.writeFile('mesures.txt', '5.0\\n5.1\\n4.9\\n');
+    window.execute = async () => 'Fichier créé'; // programme qui ne crée pas de fichier
+  });
+  await page.locator('#test').click();
+  await expect(page.locator('#tests')).toContainText('Fichier mesures.txt absent ou incorrect');
+  await expect(page.locator('#stateBadge')).toHaveText('🔓 En cours');
+  await page.evaluate(() => {
+    window.execute = async () => {
+      pyodide.FS.writeFile('mesures.txt', current().tests[0].file.content);
+      return 'Fichier créé';
+    };
+  });
+  await page.locator('#test').click();
+  await expect(page.locator('#stateBadge')).toHaveText('✅ Validé');
 });
