@@ -1,6 +1,3 @@
-// Charge la synchronisation Supabase sans modifier eleve.html.
-(() => { const s=document.createElement('script'); s.src='supabase-sync.js'; document.head.appendChild(s); })();
-
 // Catalogue autonome des exercices — aucune dépendance à Render.
 window.PYTHON_EXERCISES = [
   {id:'tp1q1',tp:'TP1',title:'Q1 — Loi d’Ohm',description:'Contexte : loi d’Ohm — U = R × I\n\nDéclarer R = 470 et I = 0.02, calculer la tension U = R * I et l’afficher.\nVérifier que U = 9.4 V.\n\nSortie attendue :\nTension U = 9.4 V',tests:[{expected:'Tension U = 9.4 V'}]},
