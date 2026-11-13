@@ -18,7 +18,7 @@ REQUIREMENTS = {
     "tp1q3": ("call:input", "multiplication"),
     "tp1q4": ("multiplication",),
     "tp1q5": ("fstring",),
-    "tp2q1": ("call:input", "conditional"),
+    "tp2q1": ("call:input", "comparison"),
     "tp2q2": ("call:input", "conditional"),
     "tp2q3": ("and",),
     "tp2q4": ("nested_for",),
@@ -51,6 +51,7 @@ MESSAGES = {
     "multiplication": "Effectue réellement le calcul avec une multiplication (*).",
     "fstring": "Utilise une f-string Python, comme demandé dans l'énoncé.",
     "conditional": "Utilise une condition if/elif/else ou une expression conditionnelle.",
+    "comparison": "Compare la valeur mesurée au seuil.",
     "and": "Utilise l'opérateur logique « and » pour tester les deux conditions.",
     "nested_for": "Utilise deux boucles « for » imbriquées.",
     "for": "Utilise une boucle « for ».",
@@ -73,7 +74,7 @@ def _call_name(call):
 def _nested_for(tree):
     return any(
         isinstance(node, (ast.For, ast.AsyncFor))
-        and any(isinstance(desc, (ast.For, ast.AsyncFor))
+        and any(isinstance(desc, (ast.For, ast.AsyncFor, ast.comprehension))
                 for child in node.body for desc in ast.walk(child))
         for node in ast.walk(tree)
     )
@@ -150,6 +151,8 @@ def _meets(tree, rule):
         return any(isinstance(n, ast.JoinedStr) for n in nodes)
     if rule == "conditional":
         return any(isinstance(n, (ast.If, ast.IfExp)) for n in nodes)
+    if rule == "comparison":
+        return any(isinstance(n, ast.Compare) for n in nodes)
     if rule == "and":
         return any(isinstance(n, ast.BoolOp) and isinstance(n.op, ast.And)
                    for n in nodes)
