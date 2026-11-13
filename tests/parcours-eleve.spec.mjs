@@ -56,7 +56,7 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({ status: 200, contentType: 'application/javascript', body: monacoStub }));
   await page.route('**/pyodide.js', route =>
     route.fulfill({ status: 200, contentType: 'application/javascript',
-      body: 'window.loadPyodide = async () => ({ runPythonAsync: async () => {}, globals: { get: () => "" }, FS: { _files: new Map(), unlink(p) { if(!this._files.has(p)) throw Error("ENOENT"); this._files.delete(p); }, readFile(p) { if(!this._files.has(p)) throw Error("ENOENT"); return this._files.get(p); }, writeFile(p, content) { this._files.set(p, content); } } });' }));
+      body: 'window.loadPyodide = async () => ({ runPythonAsync: async () => {}, globals: { get: (key) => key === "_ps_validate_result" ? \'{"ok":true,"message":""}\' : "" }, FS: { _files: new Map(), unlink(p) { if(!this._files.has(p)) throw Error("ENOENT"); this._files.delete(p); }, readFile(p) { if(!this._files.has(p)) throw Error("ENOENT"); return this._files.get(p); }, writeFile(p, content) { this._files.set(p, content); } } });' }));
   await page.route('**/supabase-js@2', route =>
     route.fulfill({ status: 200, contentType: 'application/javascript', body: supabaseStub }));
   await page.route('https://*.supabase.co/**', route =>
@@ -162,4 +162,18 @@ test('TP8 Q1 : le correcteur refuse un texte seul, même si un ancien fichier ex
   });
   await page.locator('#test').click();
   await expect(page.locator('#stateBadge')).toHaveText('✅ Validé');
+});
+
+test('la vérification structurelle empêche une fausse validation', async ({ page }) => {
+  await login(page);
+  await page.evaluate(() => {
+    window.PythonPedagogical.inspect = async () => ({
+      ok: false, message: 'Utilise une boucle while.'
+    });
+    window.execute = async () => 'Tension U = 9.4 V';
+  });
+  await page.locator('#test').click();
+  await expect(page.locator('#tests')).toContainText('Utilise une boucle while');
+  await expect(page.locator('#progressText')).toHaveText('0 / 50');
+  await expect(page.locator('#stateBadge')).toHaveText('🔓 En cours');
 });
