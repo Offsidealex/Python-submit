@@ -6,6 +6,8 @@ on:
     paths:
       - "eleve.html"
       - "exercises.js"
+      - "pedagogical_checks.py"
+      - "pedagogical-runtime.js"
       - "supabase-sync.js"
       - "tests/**"
       - "playwright.config.mjs"
@@ -32,6 +34,8 @@ jobs:
           node-version: "22"
       - name: Exécuter l'élève virtuel
         run: python3 tests/virtual_student.py
+      - name: Tester les règles AST et les contournements du jeu de dés
+        run: python3 -m unittest discover -s tests -p 'test_pedagogical_checks.py' -v
       - name: Audit pédagogique avancé (250+ scénarios)
         run: python3 tests/audit_pedagogique.py
       - name: Rapport pédagogique et données JSON
