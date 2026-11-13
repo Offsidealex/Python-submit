@@ -15,6 +15,8 @@ import tempfile
 from pathlib import Path
 
 from virtual_student import SOLUTIONS, catalogue, check, execute
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from pedagogical_checks import REQUIREMENTS, validate_code
 
 REPORT = Path(__file__).with_name("rapport-pedagogique.md")
 DATA = Path(__file__).with_name("rapport-pedagogique.json")
@@ -72,10 +74,12 @@ NEEDED = {
 }
 
 def accepted(ex, program):
-    # Même logique que la plateforme : sortie + contenu des fichiers attendus.
-    # Exécution sur espace temporaire distinct à chaque test.
+    # Même logique que la plateforme : AST, sorties et fichiers.
+    # Exécution dans un espace temporaire distinct à chaque test.
+    if not validate_code(ex["id"], program)["ok"]:
+        return False
     for t in ex["tests"]:
-        output=execute(program,t.get("inputs",[]))
+        output=execute(program,t.get("inputs",[]),t.get("dice"))
         if not check(program,t,output):
             return False
         if t.get("file"):
@@ -199,10 +203,11 @@ def main():
                 regressions.append(f"{key} — fichier — {err}")
         if key in NEEDED:
             for required in NEEDED[key]:
+                ast_checked = key in REQUIREMENTS
                 add(rows,ex,"Construction : "+required,
-                    "RISQUE" if ex["tests"][0].get("requires") else "MANQUE",
-                    "Mots-clés testés sans analyse AST" if ex["tests"][0].get("requires")
-                    else "La sortie seule ne démontre pas la construction demandée")
+                    "OK" if ast_checked else "MANQUE",
+                    "Présence de la construction contrôlée par l'AST" if ast_checked
+                    else "Vérification structurelle absente")
     counts=collections.Counter(r["statut"] for r in rows)
     per_tp={}
     for ex in exercises:
