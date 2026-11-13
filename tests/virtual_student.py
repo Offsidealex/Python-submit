@@ -64,7 +64,9 @@ while U>=1:
     U=U/2
     n+=1
 print(n)""",
-    "tp3q3": """s=sum(range(1,201))
+    "tp3q3": """s=0
+for k in range(1,201):
+    s+=k
 print(s)
 n=200
 print(n*(n+1)//2)""",
@@ -223,7 +225,31 @@ with contextlib.redirect_stdout(out):
 print(json.dumps({"output":out.getvalue(),"error":error},ensure_ascii=False))
 '''
 
-def execute(code, inputs):
+def controlled_dice_program(source, dice):
+    """Exécute du vrai Python avec un tirage de dés déterministe."""
+    rolls = repr(list(dice))
+    return (
+        "import random as _audit_random\n"
+        "_audit_original = _audit_random.randint\n"
+        f"_audit_rolls = iter({rolls})\n"
+        "def _audit_randint(a,b):\n"
+        "    if (a,b) != (1,6):\n"
+        "        raise ValueError('Les dés doivent utiliser randint(1,6)')\n"
+        "    try:\n"
+        "        return next(_audit_rolls)\n"
+        "    except StopIteration:\n"
+        "        raise RuntimeError('Trop de tirages de dés')\n"
+        "_audit_random.randint = _audit_randint\n"
+        "try:\n"
+        f"    exec({source!r}, {{'__name__':'__main__'}})\n"
+        "finally:\n"
+        "    _audit_random.randint = _audit_original\n"
+    )
+
+
+def execute(code, inputs, dice=None):
+    if dice is not None:
+        code = controlled_dice_program(code, dice)
     with tempfile.TemporaryDirectory(prefix="python-submit-agent-") as tmp:
         done = subprocess.run([sys.executable, "-I", "-c", EXECUTOR],
                               input=json.dumps({"code":code,"inputs":inputs}),
@@ -267,7 +293,7 @@ def main():
         for n,tc in enumerate(exercise.get("tests",[]),1):
             if not program: break
             try:
-                actual=execute(textwrap.dedent(program),tc.get("inputs",[]))
+                actual=execute(textwrap.dedent(program),tc.get("inputs",[]),tc.get("dice"))
                 if not check(program,tc,actual):
                     reasons.append(f"test {n}: attendu={tc.get('expected',tc.get('outputRegex'))!r}, obtenu={actual[:100]!r}")
                 if check("print('FAUX')",tc,"FAUX"):
