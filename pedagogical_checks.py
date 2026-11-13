@@ -129,10 +129,17 @@ def _dice_loop(tree):
 def _file_calls(tree, action):
     methods = {"file_write": {"write", "writelines", "to_csv"},
                "file_read": {"read", "readline", "readlines", "read_text"}}
-    return any(
-        isinstance(n, ast.Call) and _call_name(n) in methods[action]
-        for n in ast.walk(tree)
-    )
+    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
+    if any(_call_name(n) in methods[action] for n in calls):
+        return True
+    # « for ligne in fichier » et « [float(x) for x in f] » sont des
+    # méthodes idiomatiques de lecture, sans appel .read().
+    if action == "file_read":
+        opens = any(_call_name(n) == "open" for n in calls)
+        iterations = any(isinstance(n, (ast.For, ast.comprehension))
+                         for n in ast.walk(tree))
+        return opens and iterations
+    return False
 
 
 def _meets(tree, rule):
